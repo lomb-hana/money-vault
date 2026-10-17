@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: money-vault
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: STATE_ROW_ID
+        value: money-main
+      - key: APP_TITLE
+        value: Money Vault
+      - key: ADMIN_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
