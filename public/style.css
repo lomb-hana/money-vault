@@ -74,3 +74,11 @@ button.danger{color:#ffd0ca}button:focus-visible,a:focus-visible{outline:2px sol
 .rulecard{border-color:var(--gold2);margin:6px 0 12px}
 .manual summary{cursor:pointer;margin-top:14px;color:var(--dim);font-weight:700}.manual summary:hover{color:var(--gold)}
 label.ck{display:flex;align-items:center;gap:7px;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text);margin:4px 0 0;font-weight:600}label.ck input{width:18px;height:18px;accent-color:var(--gold)}
+
+/* ===== bank linking ===== */
+.linkhero{border-color:var(--gold2)}.steps{margin:6px 0 4px;padding-left:20px}.steps li{margin:4px 0}
+textarea{font-family:ui-monospace,Menlo,monospace;font-size:14px;resize:vertical}
+.alt{margin-top:14px;padding-top:10px;border-top:1px dashed var(--line)}.alt .row{margin-top:8px;align-items:center}.alt .row button{margin:0}
+.linkcard .acc{align-items:flex-start}.accopts{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px}.accopts .ck{margin:0}
+.kindsel{width:auto;padding:4px 8px;font-size:13px}.linkcard .row button{flex:0 0 auto;margin-top:10px}
+button:disabled{filter:grayscale(.6) brightness(.8);cursor:wait}

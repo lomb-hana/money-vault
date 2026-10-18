@@ -1,1 +1,1 @@
-{ "name": "money-vault", "version": "1.0.0", "private": true, "scripts": { "start": "node server.js" }, "engines": { "node": ">=18" } }
+{ "name": "money-vault", "version": "1.0.0", "private": true, "scripts": { "start": "node server.js", "test": "node --test test/bank-link.test.js" }, "engines": { "node": ">=18" } }

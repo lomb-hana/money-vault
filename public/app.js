@@ -69,7 +69,8 @@ function recurCards(list,limit=6){const L=list.filter(r=>!r.already);if(!L.lengt
 function wireRecur(after){document.querySelectorAll('[data-acc]').forEach(b=>b.onclick=async()=>{try{const r=await api('/api/recurring/accept','POST',{key:b.dataset.acc,as:b.dataset.as});await load();await loadRecurring();toast(r.as==='paycheck'?'Payday locked in. Paychecks log themselves now 💵':r.as==='subscription'?'Subscription tracked 📺 auto-logs monthly':'Bill added 🧾 auto-logs monthly');after()}catch(x){toast('⚠ '+x.message)}});
   document.querySelectorAll('[data-dis]').forEach(b=>b.onclick=async()=>{await api('/api/recurring/dismiss','POST',{key:b.dataset.dis});await loadRecurring();after()})}
 V['']=async()=>{const t=today(),m=ym(t),T=monthTotals(m),np=nextPayday();
-  if(!S.tx.length){app.innerHTML=`<div class="card hero cta"><div class="ctaicon">📥</div><h1>Import your bank CSV</h1><p>Download your statement from your bank app (CSV, OFX or QFX), drop it in, and the vault sorts everything, finds your bills and paycheck, and does the math. No typing.</p><a class="btn" href="#/import">Import a statement</a><p class="small dim" style="margin-top:14px">Works with Chase, BofA, Capital One, Wells Fargo, Varo, Cash App and most others. Or <a href="#/tx" class="gold">add one by hand</a>.</p></div>`;return}
+  if(BANK===null)await loadBank();
+  if(!S.tx.length){app.innerHTML=`<div class="card hero cta"><div class="ctaicon">🔗</div><h1>Link your bank</h1><p>Hook up checking, savings and credit cards once and the vault pulls everything in by itself, sorts it, finds your bills and paycheck, and does the math. No typing, no CSVs.</p><a class="btn" href="#/import">🔗 Link a bank</a> <a class="btn ghost" href="#/import">📄 Upload a CSV instead</a><p class="small dim" style="margin-top:14px">Works with Chase, BofA, Capital One, Wells Fargo, Varo, Cash App and most others. Or <a href="#/tx" class="gold">add one by hand</a>.</p></div>`;return}
   const I=insights();if(RECUR===null)await loadRecurring();
   const billsList=S.bills.map(b=>({b,s:billStatus(b)})).filter(x=>x.s.k!=='paid').sort((a,b)=>a.s.due.localeCompare(b.s.due));
   let payCard='<div class="card stat"><div class="k">Next payday</div><div class="v dim">?</div><div class="s"><a href="#/settings" class="gold">Set payday</a> or import a statement and the vault will figure it out.</div></div>';
@@ -84,21 +85,66 @@ V['']=async()=>{const t=today(),m=ym(t),T=monthTotals(m),np=nextPayday();
    <li>🔮 Ending ${monthName(m).split(' ')[0]} around <b class="${I.proj<0?'neg':'gold'}">${usd(I.proj)}</b>: ${I.upPay?`+${usd0(I.upPay)} pay still coming, `:''}${I.unpaid?`-${usd0(I.unpaid)} bills left, `:''}spending ~${usd0(I.rate)}/day on the fun stuff.</li>
    ${I.subYr?`<li>📺 Subscriptions cost you <b class="gold">${usd0(I.subYr)}/year</b>. ${I.subYr>600?'That\'s a whole console.':'Not terrible.'}</li>`:''}
    ${I.top.length?`<li>🏆 Top spots this month: ${I.top.map(([k,v])=>`${esc(k)} <b>${usd0(v)}</b>`).join(', ')}</li>`:''}</ul></div>
-  ${recurCards(RECUR,3)}
+  ${linkedSummary()}${recurCards(RECUR,3)}
   <div class="two"><div class="card"><h2>Bills coming up</h2>${billsList.length?billsList.slice(0,5).map(({b,s})=>`<div class="li"><span class="ico">${b.category==='Subscriptions'?'📺':'🧾'}</span><div class="grow"><div class="t">${esc(b.name)}${b.autoLog?' <span class="badge">auto</span>':''}</div><div class="small dim">${usd(b.amount)}</div></div><span class="pill p-${s.k}">${s.label}</span><button class="small ghost" data-pay="${b.id}">Paid</button></div>`).join(''):`<p class="empty">${S.bills.length?'All bills paid this month. 👑':'No bills yet. Import a statement and the vault will find them.'}</p>`}<a class="btn ghost" href="#/bills">Manage bills</a></div>
    <div class="card"><h2>Where it went</h2>${donut(T.byCat)}</div></div>
   <div class="two"><div class="card"><h2>Balance trend</h2>${trend()}</div><div class="card"><h2>Month vs month</h2>${bars()}</div></div>
-  <div class="card"><a class="btn" href="#/import">📥 Import new transactions</a> <a class="btn ghost" href="#/tx">✍ Add by hand</a></div>`;
+  <div class="card"><a class="btn" href="#/import">${(BANK&&BANK.links||[]).length?'🔄 Bank sync':'🔗 Link a bank'}</a> <a class="btn ghost" href="#/tx">✍ Add by hand</a></div>`;
   wireRecur(V['']);document.querySelectorAll('[data-pay]').forEach(b=>b.onclick=()=>markPaid(b.dataset.pay,true))};
+
+
+// ---------- bank linking ----------
+let BANK=null;
+async function loadBank(){try{const [pv,links]=await Promise.all([api('/api/bank/providers'),api('/api/bank/links')]);BANK={...pv,links}}catch{BANK={configured:false,providers:[],links:[]}}return BANK}
+const ago=iso=>{if(!iso)return 'never';const m=Math.round((Date.now()-Date.parse(iso))/6e4);return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' hr ago':Math.round(m/1440)+' days ago'};
+const ctTime=iso=>iso?new Date(iso).toLocaleString('en-US',{timeZone:TZ,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' CT':'';
+const prov=id=>(BANK.providers||[]).find(p=>p.id===id)||{};
+function accRow(l,a){const cr=a.kind==='credit';return `<div class="li acc"><span class="ico">${cr?'💳':'🏦'}</span><div class="grow"><div class="t">${esc(a.name)}</div><div class="small dim">${esc(a.org)}${a.available!=null&&!cr?` · ${usd(a.available)} available`:''}</div>
+  <div class="accopts"><label class="ck"><input type="checkbox" data-inc="${esc(l.id)}|${esc(a.id)}" ${a.include?'checked':''}> count it</label><select class="kindsel" data-kind="${esc(l.id)}|${esc(a.id)}" aria-label="Account type"><option value="depository" ${!cr?'selected':''}>Bank</option><option value="credit" ${cr?'selected':''}>Credit card</option></select></div></div>
+  <span class="amt ${a.balance<0?'neg':'pos'}">${a.balance==null?'?':usd(a.balance)}</span></div>`}
+function linkCard(l){const st=l.status==='ok'?`<span class="pill p-paid">Synced</span>`:l.status==='syncing'?`<span class="pill p-soon">Syncing</span>`:l.status==='needs_attention'?`<span class="pill p-over">Needs you</span>`:l.status==='error'?`<span class="pill p-over">Error</span>`:`<span class="pill p-later">New</span>`;const r=l.lastResult;
+  return `<div class="card linkcard"><div class="li" style="border:0"><span class="ico">🔗</span><div class="grow"><div class="t">${esc(l.label)}</div><div class="small dim" title="${esc(ctTime(l.lastSync))}">via ${esc(l.providerName)} · last sync ${esc(ago(l.lastSync))}${l.lastSync?` (${esc(ctTime(l.lastSync))})`:''}</div></div>${st}</div>
+  ${l.error?`<div class="warn">⚠ ${esc(l.error)}</div>`:''}${(l.warnings||[]).map(w=>`<div class="small gold">ⓘ ${esc(w)}</div>`).join('')}
+  ${r&&r.at?`<p class="small dim">Last pull: ${r.added} new${r.dupes?`, ${r.dupes} already had`:''}${r.transfers?`, ${r.transfers} transfers between your accounts ignored`:''}${r.billsPaid?`, ${r.billsPaid} bills marked paid`:''}.</p>`:''}
+  ${(l.accounts||[]).map(a=>accRow(l,a)).join('')||'<p class="small dim">No accounts yet.</p>'}
+  <div class="row" style="flex-wrap:nowrap"><button class="small" data-sync="${esc(l.id)}">🔄 Sync now</button><button class="small ghost danger" data-unlink="${esc(l.id)}">Unlink</button></div></div>`}
+function linkPanel(){if(!BANK)return '';const sf=prov('simplefin'),te=prov('teller'),pl=prov('plaid'),L=BANK.links||[];
+  if(!BANK.configured)return `<div class="card"><h2>🔗 Link a bank</h2><p class="small dim">Live bank linking isn't switched on yet on this server. Import a CSV below for now.</p></div>`;
+  return `<div class="card linkhero"><h2>🔗 Link a bank</h2><p class="small dim">Checking, savings and credit cards sync on their own about every ${BANK.syncEveryHours} hours (and when you open the app). Read-only: nothing here can move money. Your link is encrypted and private to your account.</p>
+  ${sf.enabled?`<ol class="steps"><li>Open <a class="gold" href="${esc(sf.createUrl)}" target="_blank" rel="noopener noreferrer">SimpleFIN Bridge</a>, connect your banks and cards there (${esc(sf.cost)}).</li><li>Make a <b>setup token</b> and copy it.</li><li>Paste it here.</li></ol>
+  <label for="sft">SimpleFIN setup token</label><textarea id="sft" rows="3" placeholder="aHR0cHM6Ly9..." autocomplete="off" spellcheck="false"></textarea>
+  <button id="sfgo">🔗 Link my accounts</button><div class="err" id="sfe" role="alert"></div>`:''}
+  ${te.enabled?`<div class="alt"><b>Or Teller</b> <span class="small dim">(${esc(te.environment)})</span>${te.appId?`<button class="small ghost" id="tcgo">Connect with Teller</button>`:''}${te.environment==='sandbox'?`<div class="row"><input id="tct" placeholder="Teller sandbox token, e.g. test_token_..." autocomplete="off"><button class="small ghost" id="tctgo" style="flex:0 0 auto">Link</button></div>`:''}</div>`:''}
+  ${pl.enabled?`<div class="alt"><b>Or Plaid</b> <span class="small dim">(${esc(pl.environment)})</span> <button class="small ghost" id="plgo">Connect with Plaid</button></div>`:''}</div>
+  ${L.length?`<h2 style="margin-top:4px">Linked accounts</h2>${L.map(linkCard).join('')}`:''}`}
+async function doLink(body,errEl){const btns=document.querySelectorAll('.linkhero button');btns.forEach(b=>b.disabled=true);toast('Linking… pulling your accounts',8000);
+  try{const r=await api('/api/bank/links','POST',body);await loadBank();await load();await loadRecurring();
+    toast(r.first&&r.first.error?'Linked, but first sync hit a snag: '+r.first.error:`🔗 Linked! ${r.link.accounts.length} accounts, ${r.first?r.first.added:0} transactions pulled in`,5000);V.import()}
+  catch(x){if(errEl)errEl.textContent=x.message;else toast('⚠ '+x.message)}finally{btns.forEach(b=>b.disabled=false)}}
+const loadScript=src=>new Promise((ok,no)=>{if(document.querySelector(`script[src="${src}"]`))return ok();const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>no(new Error('Could not load '+src));document.head.appendChild(s)});
+function wireLink(){if(!BANK)return;const q=s=>document.querySelector(s);
+  q('#sfgo')&&(q('#sfgo').onclick=()=>{const t=q('#sft').value.trim();if(!t)return q('#sfe').textContent='Paste your setup token first';doLink({provider:'simplefin',token:t},q('#sfe'))});
+  q('#tctgo')&&(q('#tctgo').onclick=()=>doLink({provider:'teller',accessToken:q('#tct').value.trim()}));
+  q('#tcgo')&&(q('#tcgo').onclick=async()=>{try{const te=prov('teller');await loadScript('https://cdn.teller.io/connect/connect.js');window.TellerConnect.setup({applicationId:te.appId,environment:te.environment,products:['transactions','balance'],onSuccess:e=>doLink({provider:'teller',accessToken:e.accessToken})}).open()}catch(x){toast('⚠ '+x.message)}});
+  q('#plgo')&&(q('#plgo').onclick=async()=>{try{const {linkToken}=await api('/api/bank/plaid/link-token','POST',{});await loadScript('https://cdn.plaid.com/link/v2/stable/link-initialize.js');window.Plaid.create({token:linkToken,onSuccess:(pt,meta)=>doLink({provider:'plaid',publicToken:pt,institution:meta&&meta.institution&&meta.institution.name})}).open()}catch(x){toast('⚠ '+x.message)}});
+  document.querySelectorAll('[data-sync]').forEach(b=>b.onclick=async()=>{b.disabled=true;b.textContent='Syncing…';try{const r=await api(`/api/bank/links/${b.dataset.sync}/sync`,'POST',{});await load();await loadRecurring();toast(r.added?`🔄 ${r.added} new transactions`:'🔄 All caught up, nothing new')}catch(x){toast('⚠ '+x.message)}await loadBank();route()});
+  document.querySelectorAll('[data-unlink]').forEach(b=>b.onclick=async()=>{if(!confirm('Unlink this bank? The vault forgets the connection.'))return;const drop=confirm('Also delete the transactions it pulled in? (Cancel keeps them)');
+    try{const r=await api(`/api/bank/links/${b.dataset.unlink}${drop?'?dropTx=1':''}`,'DELETE');await loadBank();await load();toast(`Unlinked${r.dropped?`, ${r.dropped} transactions removed`:''}. Also revoke the token in SimpleFIN Bridge if you're done with it.`,5000);route()}catch(x){toast('⚠ '+x.message)}});
+  document.querySelectorAll('[data-inc]').forEach(c=>c.onchange=async()=>{const [l,a]=c.dataset.inc.split('|');await api(`/api/bank/links/${l}/accounts/${encodeURIComponent(a)}`,'PUT',{include:c.checked});await loadBank();toast(c.checked?'Counting it from the next sync':'Ignored from the next sync')});
+  document.querySelectorAll('[data-kind]').forEach(c=>c.onchange=async()=>{const [l,a]=c.dataset.kind.split('|');await api(`/api/bank/links/${l}/accounts/${encodeURIComponent(a)}`,'PUT',{kind:c.value});await loadBank();toast('Saved. Card payments get matched as transfers.')})}
+function linkedSummary(){const L=(BANK&&BANK.links)||[];if(!L.length)return '';const A=L.flatMap(l=>(l.accounts||[]).filter(a=>a.include));const cash=A.filter(a=>a.kind!=='credit').reduce((s,a)=>s+(a.balance||0),0),owed=A.filter(a=>a.kind==='credit').reduce((s,a)=>s+(a.balance||0),0);
+  const last=L.map(l=>l.lastSync).filter(Boolean).sort().pop();
+  return `<div class="card"><h2>🏦 Linked accounts</h2><div class="grid"><div class="stat"><div class="k">Cash</div><div class="v pos">${usd0(cash)}</div></div><div class="stat"><div class="k">Cards owed</div><div class="v ${owed<0?'neg':''}">${usd0(Math.abs(owed))}</div></div></div>
+  ${A.slice(0,6).map(a=>`<div class="li"><span class="ico">${a.kind==='credit'?'💳':'🏦'}</span><div class="grow"><div class="t">${esc(a.name)}</div><div class="small dim">${esc(a.org)}</div></div><span class="amt ${a.balance<0?'neg':'pos'}">${a.balance==null?'?':usd(a.balance)}</span></div>`).join('')}
+  <p class="small dim">Synced ${esc(ago(last))}${L.some(l=>l.status==='needs_attention'||l.status==='error')?' · <b class="neg">a link needs attention</b>':''} · <a class="gold" href="#/import">manage</a></p></div>`}
 
 // ---------- import ----------
 let PREV=null;
-V.import=async()=>{if(RECUR===null)await loadRecurring();
-  app.innerHTML=`<h1>Import</h1><div class="card"><h2>Bank statement</h2><p class="small dim">In your bank app look for <b>Download / Export transactions</b> and pick CSV (or OFX/QFX). Everything stays private to your account.</p>
+V.import=async()=>{if(RECUR===null)await loadRecurring();await loadBank();
+  app.innerHTML=`<h1>Link & import</h1>${linkPanel()}<div class="card"><h2>📄 Or upload a statement</h2><p class="small dim">In your bank app look for <b>Download / Export transactions</b> and pick CSV (or OFX/QFX). Everything stays private to your account.</p>
   <label class="drop" id="drop"><input type="file" id="file" accept=".csv,.ofx,.qfx,.txt,text/csv"><span class="dropicon">📄</span><b>Tap to pick a file</b><span class="small dim">or drop it here</span></label><div class="err" id="ie"></div></div>
-  <div id="prev"></div><div id="rec">${recurCards(RECUR,50)||''}</div>
-  <div class="card"><h2>Live bank sync</h2><p class="small dim">Coming later (SimpleFIN). For now, a fresh CSV every week or two keeps everything current; duplicates are skipped automatically.</p></div>`;
-  wireRecur(V.import);
+  <div id="prev"></div><div id="rec">${recurCards(RECUR,50)||''}</div>`;
+  wireRecur(V.import);wireLink();
   const handle=file=>{if(!file)return;if(file.size>5e6)return $('#ie').textContent='That file is huge. Try a smaller date range.';const fr=new FileReader();fr.onload=async()=>{try{$('#ie').textContent='';PREV=await api('/api/import/preview','POST',{text:fr.result,filename:file.name});PREV.name=file.name;drawPrev()}catch(x){$('#ie').textContent=x.message}};fr.readAsText(file)};
   $('#file').onchange=e=>handle(e.target.files[0]);const d=$('#drop');d.ondragover=e=>{e.preventDefault();d.classList.add('over')};d.ondragleave=()=>d.classList.remove('over');d.ondrop=e=>{e.preventDefault();d.classList.remove('over');handle(e.dataTransfer.files[0])};
   if(PREV)drawPrev()};
@@ -125,10 +171,10 @@ let txF={m:null,c:''};
 V.tx=()=>{const m=txF.m||ym(today());const months=[...new Set([ym(today()),...S.tx.map(t=>ym(t.date))])].sort().reverse();
   const L=S.tx.filter(t=>(m==='all'||ym(t.date)===m)&&(!txF.c||t.category===txF.c)).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt.localeCompare(a.createdAt));
   const inc=L.filter(t=>t.type==='income').reduce((a,t)=>a+t.amount,0),exp=L.filter(t=>t.type==='expense').reduce((a,t)=>a+t.amount,0);
-  app.innerHTML=`<h1>Money in & out</h1><div class="card"><a class="btn" href="#/import">📥 Import bank CSV</a><details class="manual"><summary>✍ Add one by hand</summary>${quickAdd()}</details></div>
+  app.innerHTML=`<h1>Money in & out</h1><div class="card"><a class="btn" href="#/import">🔗 Link bank / import</a><details class="manual"><summary>✍ Add one by hand</summary>${quickAdd()}</details></div>
   <div class="card"><div class="filters"><div><label>Month</label><select id="fm"><option value="all">All time</option>${months.map(x=>`<option value="${x}" ${x===m?'selected':''}>${monthName(x)}</option>`).join('')}</select></div><div><label>Category</label><select id="fc"><option value="">Everything</option>${opts([...S.EXPENSE,...S.INCOME],txF.c)}</select></div><a class="btn ghost" href="/api/export.csv" download>⬇ CSV</a></div>
   <p class="small dim">${L.length} transactions · <span class="pos">+${usd(inc)}</span> · <span class="gold">-${usd(exp)}</span></p>
-  ${L.map(t=>`<div class="li"><span class="ico">${ICON[t.category]||'🪙'}</span><div class="grow"><div class="t">${esc(t.merchantName||t.note||t.category)}${t.source==='auto'?' <span class="badge">auto</span>':''}</div><div class="small dim">${esc(t.category)}${t.note&&t.merchantName?' · '+esc(t.note):''}</div><div class="small dim">${new Date(t.date+'T12:00:00Z').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',timeZone:'UTC'})}</div></div><span class="amt ${t.type==='income'?'pos':'gold'}">${t.type==='income'?'+':'-'}${usd(t.amount)}</span><button class="small ghost" data-e="${t.id}" aria-label="Edit">✎</button></div><div id="ed-${t.id}"></div>`).join('')||'<p class="empty">Nothing here yet. Tap a category above to log something.</p>'}</div>`;
+  ${L.map(t=>`<div class="li"><span class="ico">${ICON[t.category]||'🪙'}</span><div class="grow"><div class="t">${esc(t.merchantName||t.note||t.category)}${t.source==='auto'?' <span class="badge">auto</span>':t.source==='bank'?' <span class="badge">bank</span>':''}</div><div class="small dim">${esc(t.category)}${t.note&&t.merchantName?' · '+esc(t.note):''}</div><div class="small dim">${new Date(t.date+'T12:00:00Z').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',timeZone:'UTC'})}</div></div><span class="amt ${t.type==='income'?'pos':'gold'}">${t.type==='income'?'+':'-'}${usd(t.amount)}</span><button class="small ghost" data-e="${t.id}" aria-label="Edit">✎</button></div><div id="ed-${t.id}"></div>`).join('')||'<p class="empty">Nothing here yet. Tap a category above to log something.</p>'}</div>`;
   wireQuick();$('#fm').onchange=e=>{txF.m=e.target.value;V.tx()};$('#fc').onchange=e=>{txF.c=e.target.value;V.tx()};
   document.querySelectorAll('[data-e]').forEach(b=>b.onclick=()=>{const t=S.tx.find(x=>x.id===b.dataset.e),box=$('#ed-'+t.id);if(box.innerHTML){box.innerHTML='';return}
    box.innerHTML=`<div class="card" style="margin:6px 0 12px"><div class="row"><div><label>Type</label><select id="et"><option value="expense" ${t.type==='expense'?'selected':''}>Spent</option><option value="income" ${t.type==='income'?'selected':''}>Income</option></select></div><div><label>Amount</label><input id="ea" type="number" step="0.01" inputmode="decimal" value="${t.amount}"></div></div>
@@ -186,10 +232,10 @@ function authView(mode){document.body.classList.add('locked');$('#userbox').inne
   ${reg?'<label for="ap2">Confirm password</label><input id="ap2" type="password" autocomplete="new-password" required><p class="small dim">3-24 letters, numbers, _ or -. Password 6+ characters. Forget it and an admin can reset it.</p>':''}
   <button type="submit">${reg?'Create account':'Open the vault'}</button><div class="err" id="ae" role="alert"></div></form></div>`;
   $('#tl').onclick=()=>authView();$('#tr').onclick=()=>authView('register');
-  $('#af').onsubmit=async e=>{e.preventDefault();try{if(reg&&$('#ap').value!==$('#ap2').value)throw new Error("Passwords don't match");ME=await api('/api/auth/'+(reg?'register':'login'),'POST',{username:$('#au').value,password:$('#ap').value});S=null;RECUR=null;route()}catch(x){$('#ae').textContent=x.message}}}
+  $('#af').onsubmit=async e=>{e.preventDefault();try{if(reg&&$('#ap').value!==$('#ap2').value)throw new Error("Passwords don't match");ME=await api('/api/auth/'+(reg?'register':'login'),'POST',{username:$('#au').value,password:$('#ap').value});S=null;RECUR=null;BANK=null;route()}catch(x){$('#ae').textContent=x.message}}}
 async function load(){S=await api('/api/state')}
 async function route(){try{if(!ME){try{ME=await api('/api/auth/me')}catch{ME=null}}if(!ME)return authView();document.body.classList.remove('locked');
-  $('#userbox').innerHTML=`<b>${esc(ME.username)}</b><a href="#" id="lo">log out</a>`;$('#lo').onclick=async e=>{e.preventDefault();await api('/api/auth/logout','POST',{});ME=null;S=null;RECUR=null;PREV=null;route()};
+  $('#userbox').innerHTML=`<b>${esc(ME.username)}</b><a href="#" id="lo">log out</a>`;$('#lo').onclick=async e=>{e.preventDefault();await api('/api/auth/logout','POST',{});ME=null;S=null;RECUR=null;PREV=null;BANK=null;route()};
   if(!S)await load();const h=location.hash.slice(2).split('/')[0];document.querySelectorAll('#tabs a').forEach(a=>a.classList.toggle('on',a.dataset.t===h));await (V[h]||V[''])();window.scrollTo(0,0)}catch(x){if(ME)app.innerHTML=`<p class="err">${esc(x.message)}</p>`}}
 addEventListener('hashchange',route);
 fetch('/api/config').then(r=>r.json()).then(c=>{TITLE=c.title;document.title=TITLE;$('#title').textContent=TITLE}).catch(()=>{}).finally(route);

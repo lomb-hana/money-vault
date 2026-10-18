@@ -19,3 +19,6 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_KEY
         sync: false
+      - key: BANK_LINK_KEY        # 32 random bytes, base64 (openssl rand -base64 32). Encrypts linked-bank tokens.
+        sync: false
+      # optional providers (off unless set): TELLER_APP_ID, TELLER_ENV, TELLER_CERT, TELLER_KEY, PLAID_CLIENT_ID, PLAID_SECRET, PLAID_ENV
