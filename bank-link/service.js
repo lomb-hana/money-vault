@@ -4,10 +4,11 @@
 const providers = require('./providers');
 const { LinkError, sanitize } = require('./providers/util');
 const { findTransfers, keyOf } = require('./transfers');
-const H = 3600e3;
+const HOUR_MS = 3600e3;
+const DAY_MS = 864e5;
 const MAX_LINKS = 10;
 module.exports = function bankLink({ store, vault, ingest, sealer, log = console }) {
-  const EVERY = Math.max(1, Number(process.env.BANK_SYNC_HOURS) || 6) * H;
+  const EVERY = Math.max(1, Number(process.env.BANK_SYNC_HOURS) || 6) * HOUR_MS;
   const MANUAL_GAP =
     (process.env.BANK_MANUAL_GAP_SEC != null ? Number(process.env.BANK_MANUAL_GAP_SEC) : 120) * 1e3;
   const FIRST_DAYS = 90;
@@ -31,7 +32,7 @@ module.exports = function bankLink({ store, vault, ingest, sealer, log = console
   });
   const publicProviders = () => ({
     configured: sealer.ready,
-    syncEveryHours: EVERY / H,
+    syncEveryHours: EVERY / HOUR_MS,
     providers: Object.values(providers).map(p => ({
       id: p.id,
       name: p.name,
@@ -116,8 +117,8 @@ module.exports = function bankLink({ store, vault, ingest, sealer, log = console
         secret = sealer.open(l.secret, aad(uid, id));
         const since = new Date(
           l.lastSync
-            ? Date.parse(l.lastSync) - OVERLAP_DAYS * 864e5
-            : Date.now() - FIRST_DAYS * 864e5,
+            ? Date.parse(l.lastSync) - OVERLAP_DAYS * DAY_MS
+            : Date.now() - FIRST_DAYS * DAY_MS,
         ).toISOString();
         res = await p.pull(secret, { since });
       } catch (e) {
@@ -135,9 +136,10 @@ module.exports = function bankLink({ store, vault, ingest, sealer, log = console
         throw e instanceof LinkError ? e : new LinkError(msg, 'sync', 502);
       }
       return store.mutate(() => {
+        // The user unlinked while we were fetching: drop the results.
         if (!links(uid).includes(l)) {
           return { removed: true };
-        } // unlinked mid-sync
+        }
         const V = vault(uid);
         const prev = new Map((l.accounts || []).map(a => [a.id, a]));
         l.accounts = res.accounts.map(a => {
@@ -156,18 +158,25 @@ module.exports = function bankLink({ store, vault, ingest, sealer, log = console
           l.accounts.filter(a => inc.has(a.id)),
         );
         const ref = t => `${l.provider}:${l.id}:${keyOf(t)}`.slice(0, 80);
+        const dropBankTx = refs => {
+          const before = V.tx.length;
+          V.tx = V.tx.filter(t => !(t.source === 'bank' && t.ref && refs.has(t.ref)));
+          return before - V.tx.length;
+        };
+        // Provider says these were deleted (e.g. Plaid `removed`), or changed (`modified`):
+        // drop our copy; modified ones are re-added below with their new amount/date/name.
+        const deleted = dropBankTx(new Set((res.removed || []).map(ref)));
+        const updated = dropBankTx(new Set(txs.filter(t => t.modified).map(ref)));
         // a transfer whose other half only showed up now: pull the half we already imported
-        const xrefs = new Set(txs.filter(t => xfer.has(keyOf(t))).map(ref));
-        const before = V.tx.length;
-        V.tx = V.tx.filter(t => !(t.source === 'bank' && t.ref && xrefs.has(t.ref)));
-        const removed = before - V.tx.length;
+        const removed = dropBankTx(new Set(txs.filter(t => xfer.has(keyOf(t))).map(ref)));
         const rows = txs
           .filter(t => !xfer.has(keyOf(t)))
           .map(t => ({ date: t.date, desc: t.desc, amount: t.amount, ref: ref(t) }));
         const r = ingest(V, rows, 'bank');
+        // Providers may hand back an updated secret (e.g. Plaid's sync cursor): re-seal it.
         if (res.secret) {
           l.secret = sealer.seal(res.secret, aad(uid, id));
-        } // e.g. Plaid cursor
+        }
         l.lastSync = new Date().toISOString();
         l.status = 'ok';
         l.error = null;
@@ -178,6 +187,8 @@ module.exports = function bankLink({ store, vault, ingest, sealer, log = console
           dupes: r.dupes,
           transfers: xfer.size,
           removed,
+          updated,
+          deleted,
           billsPaid: r.paid || 0,
           at: l.lastSync,
         };

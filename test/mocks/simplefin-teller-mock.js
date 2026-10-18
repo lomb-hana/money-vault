@@ -101,6 +101,15 @@ const teller = {
       currency: 'USD',
       institution: { name: 'Mock CU', id: 'mock' },
     },
+    {
+      id: 'acc_old',
+      name: 'Closed Savings',
+      last_four: '0001',
+      type: 'depository',
+      status: 'closed',
+      currency: 'USD',
+      institution: { name: 'Mock CU', id: 'mock' },
+    },
   ],
   balances: {
     acc_card: { ledger: '300.50', available: '4699.50' },
@@ -113,6 +122,9 @@ const teller = {
     ],
     acc_chk: [
       { id: 't3', date: '2026-10-09', amount: '-28.98', description: 'Staples', status: 'posted' },
+    ],
+    acc_old: [
+      { id: 't9', date: '2026-10-01', amount: '-5.00', description: 'Old fee', status: 'posted' },
     ],
   },
 };
@@ -149,7 +161,8 @@ function start(port = 0) {
       .toString()
       .split(':')[0];
     if (u.pathname.startsWith('/accounts')) {
-      if (tok !== 'test_token_mock123') {
+      // test_token_nobal1: same data, but the balances endpoint is broken
+      if (tok !== 'test_token_mock123' && tok !== 'test_token_nobal1') {
         return j(401, { error: { code: 'unauthorized', message: 'bad token' } });
       }
       const p = u.pathname.split('/').filter(Boolean);
@@ -157,6 +170,9 @@ function start(port = 0) {
         return j(200, teller.accounts);
       }
       if (p[2] === 'balances') {
+        if (tok === 'test_token_nobal1') {
+          return j(500, { error: { code: 'internal', message: 'balances down' } });
+        }
         return j(200, teller.balances[p[1]]);
       }
       if (p[2] === 'transactions') {

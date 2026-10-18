@@ -6,7 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
-const mock = require('./mock-providers');
+const mock = require('./mocks/simplefin-teller-mock');
 const sealer = require('../bank-link/crypto');
 const { findTransfers } = require('../bank-link/transfers');
 let M;
@@ -147,6 +147,8 @@ test('SimpleFIN: link, pull checking + savings + credit card, categorize, dedupe
     dupes: 0,
     transfers: 4,
     removed: 0,
+    updated: 0,
+    deleted: 0,
     billsPaid: 0,
     at: r.j.first.at,
   });

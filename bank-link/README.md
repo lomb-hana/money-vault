@@ -35,6 +35,6 @@ POST /api/bank/plaid/link-token
 
 ## Local demo with fake data
 
-    node test/mock-providers.js 4555 &
+    node test/mocks/simplefin-teller-mock.js 4555 &
     SIMPLEFIN_ALLOW_INSECURE_LOCAL=1 PORT=3050 node server.js
     # token: echo -n http://127.0.0.1:4555/simplefin/claim/demo | base64
