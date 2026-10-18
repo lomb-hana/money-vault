@@ -193,11 +193,19 @@ function donut(byCat) {
     paths +=
       ents.length === 1
         ? `<circle cx="${cx}" cy="${cy}" r="${(R + r) / 2}" fill="none" stroke="${COL[c]}" stroke-width="${R - r}"/>`
-        : `<path d="M${P(a0, R)} A${R},${R} 0 ${lg} 1 ${P(a1, R)} L${P(a1, r)} A${r},${r} 0 ${lg} 0 ${P(a0, r)}Z" fill="${COL[c]}"><title>${c}: ${usd(v)}</title></path>`;
+        : [
+            `<path d="M${P(a0, R)} A${R},${R} 0 ${lg} 1 ${P(a1, R)} L${P(a1, r)} A${r},${r} 0 ${lg} 0 ${P(a0, r)}Z" fill="${COL[c]}">`,
+            `<title>${c}: ${usd(v)}</title></path>`,
+          ].join('');
     a0 = a0 + (v / tot) * Math.PI * 2;
   }
-  return `<div class="donutwrap"><svg viewBox="0 0 170 170" class="chart" role="img" aria-label="Spending by category">${paths}<text x="85" y="82" text-anchor="middle" fill="#9dbfa8" font-size="11">spent</text><text x="85" y="101" text-anchor="middle" fill="#f3c94f" font-size="17" font-family="Bungee">${usd0(tot)}</text></svg>
-  <div class="legend" style="flex:1">${ents.map(([c, v]) => `<span><i style="background:${COL[c]}"></i>${ICON[c]} ${c} <b>${usd0(v)}</b> <span class="dim">${Math.round((v / tot) * 100)}%</span></span>`).join('')}</div></div>`;
+  return [
+    `<div class="donutwrap"><svg viewBox="0 0 170 170" class="chart" role="img" aria-label="Spending by category">${paths}<text x="85" y="82" text-anchor="middle" fill="#9dbfa8" font-size="11">spent</text>`,
+    `<text x="85" y="101" text-anchor="middle" fill="#f3c94f" font-size="17" font-family="Bungee">${usd0(tot)}</text>`,
+    '</svg>\n',
+    `  <div class="legend" style="flex:1">${ents.map(([c, v]) => [`<span><i style="background:${COL[c]}"></i>${ICON[c]} ${c} <b>${usd0(v)}</b> <span class="dim">${Math.round((v / tot) * 100)}%</span>`, '</span>'].join('')).join('')}</div>`,
+    '</div>',
+  ].join('');
 }
 function bars(n = 6) {
   const m0 = ym(today());
@@ -208,14 +216,25 @@ function bars(n = 6) {
   const H = 150;
   const bw = W / n;
   const h = v => (v / max) * (H - 30);
-  return `<svg viewBox="0 0 ${W} ${H + 18}" class="chart" role="img" aria-label="Income vs spending by month">${D.map(
-    (d, i) => {
-      const x = i * bw + bw * 0.15;
-      const w = bw * 0.33;
-      return `<rect x="${x}" y="${H - h(d.inc)}" width="${w}" height="${h(d.inc)}" rx="3" fill="url(#gI)"><title>${shortMonth(d.m)} income ${usd(d.inc)}</title></rect><rect x="${x + w + 2}" y="${H - h(d.exp)}" width="${w}" height="${h(d.exp)}" rx="3" fill="url(#gE)"><title>${shortMonth(d.m)} spent ${usd(d.exp)}</title></rect><text x="${i * bw + bw / 2}" y="${H + 14}" text-anchor="middle" fill="#9dbfa8" font-size="11">${shortMonth(d.m)}</text>`;
-    },
-  ).join('')}
-  <defs><linearGradient id="gI" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7dffb0"/><stop offset="1" stop-color="#1f8a52"/></linearGradient><linearGradient id="gE" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0a8"/><stop offset="1" stop-color="#b8862a"/></linearGradient></defs></svg><div class="legend"><span><i style="background:#4fd98a"></i>Money in</span><span><i style="background:#f3c94f"></i>Money out</span></div>`;
+  return [
+    `<svg viewBox="0 0 ${W} ${H + 18}" class="chart" role="img" aria-label="Income vs spending by month">${D.map(
+      (d, i) => {
+        const x = i * bw + bw * 0.15;
+        const w = bw * 0.33;
+        return [
+          `<rect x="${x}" y="${H - h(d.inc)}" width="${w}" height="${h(d.inc)}" rx="3" fill="url(#gI)">`,
+          `<title>${shortMonth(d.m)} income ${usd(d.inc)}</title></rect><rect x="${x + w + 2}" y="${H - h(d.exp)}" width="${w}" height="${h(d.exp)}" rx="3" fill="url(#gE)">`,
+          `<title>${shortMonth(d.m)} spent ${usd(d.exp)}</title></rect><text x="${i * bw + bw / 2}" y="${H + 14}" text-anchor="middle" fill="#9dbfa8" font-size="11">${shortMonth(d.m)}</text>`,
+        ].join('');
+      },
+    ).join('')}\n`,
+    '  <defs><linearGradient id="gI" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7dffb0"/>',
+    '<stop offset="1" stop-color="#1f8a52"/></linearGradient><linearGradient id="gE" x1="0" y1="0" x2="0" y2="1">',
+    '<stop offset="0" stop-color="#fff0a8"/><stop offset="1" stop-color="#b8862a"/>',
+    '</linearGradient></defs></svg><div class="legend"><span><i style="background:#4fd98a">',
+    '</i>Money in</span><span><i style="background:#f3c94f"></i>Money out</span>',
+    '</div>',
+  ].join('');
 }
 function trend(n = 6) {
   const m0 = ym(today());
@@ -235,9 +254,16 @@ function trend(n = 6) {
   const x = i => 10 + (i * (W - 20)) / (n - 1);
   const y = v => H - 10 - ((v - mn) / (mx - mn || 1)) * (H - 24);
   const line = pts.map((v, i) => `${x(i)},${y(v)}`).join(' ');
-  return `<svg viewBox="0 0 ${W} ${H + 16}" class="chart" role="img" aria-label="Balance trend"><defs><linearGradient id="gT" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3c94f55"/><stop offset="1" stop-color="#f3c94f00"/></linearGradient></defs>
-   ${mn < 0 ? `<line x1="0" x2="${W}" y1="${y(0)}" y2="${y(0)}" stroke="#ff6b5e55" stroke-dasharray="4"/>` : ''}<polygon points="${x(0)},${H - 10} ${line} ${x(n - 1)},${H - 10}" fill="url(#gT)"/><polyline points="${line}" fill="none" stroke="#f3c94f" stroke-width="3" stroke-linejoin="round"/>
-   ${pts.map((v, i) => `<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="#0f2a1c" stroke="#f3c94f" stroke-width="2"><title>${shortMonth(ms[i])}: ${usd(v)}</title></circle><text x="${x(i)}" y="${H + 12}" text-anchor="middle" fill="#9dbfa8" font-size="11">${shortMonth(ms[i])}</text>`).join('')}</svg><div class="dim small">Running total of everything logged: <b class="${run < 0 ? 'neg' : 'gold'}">${usd(run)}</b></div>`;
+  return [
+    `<svg viewBox="0 0 ${W} ${H + 16}" class="chart" role="img" aria-label="Balance trend">`,
+    '<defs><linearGradient id="gT" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3c94f55"/>',
+    '<stop offset="1" stop-color="#f3c94f00"/></linearGradient></defs>\n',
+    `   ${mn < 0 ? `<line x1="0" x2="${W}" y1="${y(0)}" y2="${y(0)}" stroke="#ff6b5e55" stroke-dasharray="4"/>` : ''}<polygon points="${x(0)},${H - 10} ${line} ${x(n - 1)},${H - 10}" fill="url(#gT)"/>`,
+    `<polyline points="${line}" fill="none" stroke="#f3c94f" stroke-width="3" stroke-linejoin="round"/>\n`,
+    `   ${pts.map((v, i) => [`<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="#0f2a1c" stroke="#f3c94f" stroke-width="2">`, `<title>${shortMonth(ms[i])}: ${usd(v)}</title></circle><text x="${x(i)}" y="${H + 12}" text-anchor="middle" fill="#9dbfa8" font-size="11">${shortMonth(ms[i])}</text>`].join('')).join('')}</svg>`,
+    `<div class="dim small">Running total of everything logged: <b class="${run < 0 ? 'neg' : 'gold'}">${usd(run)}</b>`,
+    '</div>',
+  ].join('');
 }
 
 // ---------- views ----------
@@ -348,9 +374,14 @@ function recurCards(list, limit = 6) {
     0,
     limit,
   )
-    .map(
-      r => `<div class="li"><span class="ico">${r.type === 'income' ? '💵' : r.kind === 'subscription' ? '📺' : '🧾'}</span><div class="grow"><div class="t">${esc(r.name)}</div><div class="small dim">${usd(r.amount)} · ${r.freq === 'biweekly' ? 'every 2 weeks' : r.freq} · seen ${r.count}x · next ~${r.next.slice(5).replace('-', '/')}</div></div>
-   <span class="rbtns">${r.type === 'income' ? `<button class="small" data-acc="${esc(r.key)}" data-as="paycheck">Set payday</button>` : `<button class="small" data-acc="${esc(r.key)}" data-as="${r.kind}">${r.kind === 'subscription' ? 'Track sub' : 'Make bill'}</button>${r.kind === 'bill' ? `<button class="small ghost" data-acc="${esc(r.key)}" data-as="subscription">Sub</button>` : `<button class="small ghost" data-acc="${esc(r.key)}" data-as="bill">Bill</button>`}`}<button class="small ghost" data-dis="${esc(r.key)}" aria-label="Not recurring">✕</button></span></div>`,
+    .map(r =>
+      [
+        `<div class="li"><span class="ico">${r.type === 'income' ? '💵' : r.kind === 'subscription' ? '📺' : '🧾'}</span>`,
+        `<div class="grow"><div class="t">${esc(r.name)}</div><div class="small dim">${usd(r.amount)} · ${r.freq === 'biweekly' ? 'every 2 weeks' : r.freq} · seen ${r.count}x · next ~${r.next.slice(5).replace('-', '/')}</div>`,
+        '</div>\n',
+        `   <span class="rbtns">${r.type === 'income' ? `<button class="small" data-acc="${esc(r.key)}" data-as="paycheck">Set payday</button>` : `<button class="small" data-acc="${esc(r.key)}" data-as="${r.kind}">${r.kind === 'subscription' ? 'Track sub' : 'Make bill'}</button>${r.kind === 'bill' ? `<button class="small ghost" data-acc="${esc(r.key)}" data-as="subscription">Sub</button>` : `<button class="small ghost" data-acc="${esc(r.key)}" data-as="bill">Bill</button>`}`}<button class="small ghost" data-dis="${esc(r.key)}" aria-label="Not recurring">✕</button>`,
+        '</span></div>',
+      ].join(''),
     )
     .join(
       '',
@@ -398,7 +429,13 @@ V[''] = async () => {
     await loadBank();
   }
   if (!S.tx.length) {
-    app.innerHTML = `<div class="card hero cta"><div class="ctaicon">🔗</div><h1>Link your bank</h1><p>Hook up checking, savings and credit cards once and the vault pulls everything in by itself, sorts it, finds your bills and paycheck, and does the math. No typing, no CSVs.</p><a class="btn" href="#/import">🔗 Link a bank</a> <a class="btn ghost" href="#/import">📄 Upload a CSV instead</a><p class="small dim" style="margin-top:14px">Works with Chase, BofA, Capital One, Wells Fargo, Varo, Cash App and most others. Or <a href="#/tx" class="gold">add one by hand</a>.</p></div>`;
+    app.innerHTML = [
+      '<div class="card hero cta"><div class="ctaicon">🔗</div><h1>Link your bank</h1>',
+      '<p>Hook up checking, savings and credit cards once and the vault pulls everything in by itself, sorts it, finds your bills and paycheck, and does the math. No typing, no CSVs.</p>',
+      '<a class="btn" href="#/import">🔗 Link a bank</a> <a class="btn ghost" href="#/import">📄 Upload a CSV instead</a>',
+      '<p class="small dim" style="margin-top:14px">Works with Chase, BofA, Capital One, Wells Fargo, Varo, Cash App and most others. Or <a href="#/tx" class="gold">add one by hand</a>.</p>',
+      '</div>',
+    ].join('');
     return;
   }
   const I = insights();
@@ -415,32 +452,51 @@ V[''] = async () => {
     const days = Math.max(daysBetween(t, np), 0);
     const dueB = unpaidBefore(np);
     const per = (T.left - dueB) / Math.max(days, 1);
-    payCard = `<div class="card stat"><div class="k">Until payday</div><div class="v gold">${days === 0 ? 'TODAY 🤑' : days + ' day' + (days > 1 ? 's' : '')}</div><div class="s">${new Date(np + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })} · ~${usd0(S.pay.amount)}${S.pay.auto ? ' · auto' : ''}</div></div>
-    <div class="card stat"><div class="k">Per-day allowance</div><div class="v ${per < 0 ? 'neg' : 'pos'}">${usd(per)}</div><div class="s">${per < 0 ? 'Ramen era until payday.' : dueB ? `after ${usd0(dueB)} in bills due first` : 'Go wild (responsibly-ish)'}</div></div>`;
+    payCard = [
+      `<div class="card stat"><div class="k">Until payday</div><div class="v gold">${days === 0 ? 'TODAY 🤑' : days + ' day' + (days > 1 ? 's' : '')}</div>`,
+      `<div class="s">${new Date(np + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })} · ~${usd0(S.pay.amount)}${S.pay.auto ? ' · auto' : ''}</div>`,
+      '</div>\n',
+      `    <div class="card stat"><div class="k">Per-day allowance</div><div class="v ${per < 0 ? 'neg' : 'pos'}">${usd(per)}</div>`,
+      `<div class="s">${per < 0 ? 'Ramen era until payday.' : dueB ? `after ${usd0(dueB)} in bills due first` : 'Go wild (responsibly-ish)'}</div>`,
+      '</div>',
+    ].join('');
   }
-  app.innerHTML = `<h1>${pick(['Cash check', 'The Vault', 'Money moves', 'Bag report'])} · ${shortMonth(m)}</h1>
-  <div class="card hero stat"><div class="k">Left this month</div><div class="v ${T.left < 0 ? 'neg' : ''}">${usd(T.left)}</div><div class="s">${usd(T.inc)} in · ${usd(T.exp)} out</div></div>
-  <div class="grid"><div class="card stat"><div class="k">🔮 End of month</div><div class="v ${I.proj < 0 ? 'neg' : 'pos'}">${usd0(I.proj)}</div><div class="s">projected at your pace</div></div>${payCard}</div>
-  <div class="card insights"><h2>💡 Vault insights</h2><ul>
-   ${I.pace.map(x => `<li class="warnli">${x}</li>`).join('')}
-   <li>🔮 Ending ${monthName(m).split(' ')[0]} around <b class="${I.proj < 0 ? 'neg' : 'gold'}">${usd(I.proj)}</b>: ${I.upPay ? `+${usd0(I.upPay)} pay still coming, ` : ''}${I.unpaid ? `-${usd0(I.unpaid)} bills left, ` : ''}spending ~${usd0(I.rate)}/day on the fun stuff.</li>
-   ${I.subYr ? `<li>📺 Subscriptions cost you <b class="gold">${usd0(I.subYr)}/year</b>. ${I.subYr > 600 ? "That's a whole console." : 'Not terrible.'}</li>` : ''}
-   ${I.top.length ? `<li>🏆 Top spots this month: ${I.top.map(([k, v]) => `${esc(k)} <b>${usd0(v)}</b>`).join(', ')}</li>` : ''}</ul></div>
-  ${linkedSummary()}${recurCards(RECUR, 3)}
-  <div class="two"><div class="card"><h2>Bills coming up</h2>${
-    billsList.length
-      ? billsList
-          .slice(0, 5)
-          .map(
-            ({ b, s }) =>
-              `<div class="li"><span class="ico">${b.category === 'Subscriptions' ? '📺' : '🧾'}</span><div class="grow"><div class="t">${esc(b.name)}${b.autoLog ? ' <span class="badge">auto</span>' : ''}</div><div class="small dim">${usd(b.amount)}</div></div><span class="pill p-${s.k}">${s.label}</span><button class="small ghost" data-pay="${b.id}">Paid</button></div>`,
-          )
-          .join('')
-      : `<p class="empty">${S.bills.length ? 'All bills paid this month. 👑' : 'No bills yet. Import a statement and the vault will find them.'}</p>`
-  }<a class="btn ghost" href="#/bills">Manage bills</a></div>
-   <div class="card"><h2>Where it went</h2>${donut(T.byCat)}</div></div>
-  <div class="two"><div class="card"><h2>Balance trend</h2>${trend()}</div><div class="card"><h2>Month vs month</h2>${bars()}</div></div>
-  <div class="card"><a class="btn" href="#/import">${((BANK && BANK.links) || []).length ? '🔄 Bank sync' : '🔗 Link a bank'}</a> <a class="btn ghost" href="#/tx">✍ Add by hand</a></div>`;
+  app.innerHTML = [
+    `<h1>${pick(['Cash check', 'The Vault', 'Money moves', 'Bag report'])} · ${shortMonth(m)}</h1>\n`,
+    `  <div class="card hero stat"><div class="k">Left this month</div><div class="v ${T.left < 0 ? 'neg' : ''}">${usd(T.left)}</div>`,
+    `<div class="s">${usd(T.inc)} in · ${usd(T.exp)} out</div></div>\n`,
+    '  <div class="grid"><div class="card stat"><div class="k">🔮 End of month</div>',
+    `<div class="v ${I.proj < 0 ? 'neg' : 'pos'}">${usd0(I.proj)}</div><div class="s">projected at your pace</div>`,
+    `</div>${payCard}</div>\n`,
+    '  <div class="card insights"><h2>💡 Vault insights</h2><ul>\n',
+    `   ${I.pace.map(x => `<li class="warnli">${x}</li>`).join('')}\n`,
+    `   <li>🔮 Ending ${monthName(m).split(' ')[0]} around <b class="${I.proj < 0 ? 'neg' : 'gold'}">${usd(I.proj)}</b>: ${I.upPay ? `+${usd0(I.upPay)} pay still coming, ` : ''}${I.unpaid ? `-${usd0(I.unpaid)} bills left, ` : ''}spending ~${usd0(I.rate)}/day on the fun stuff.</li>\n`,
+    `   ${I.subYr ? `<li>📺 Subscriptions cost you <b class="gold">${usd0(I.subYr)}/year</b>. ${I.subYr > 600 ? "That's a whole console." : 'Not terrible.'}</li>` : ''}\n`,
+    `   ${I.top.length ? `<li>🏆 Top spots this month: ${I.top.map(([k, v]) => `${esc(k)} <b>${usd0(v)}</b>`).join(', ')}</li>` : ''}</ul>`,
+    '</div>\n',
+    `  ${linkedSummary()}${recurCards(RECUR, 3)}\n`,
+    `  <div class="two"><div class="card"><h2>Bills coming up</h2>${
+      billsList.length
+        ? billsList
+            .slice(0, 5)
+            .map(({ b, s }) =>
+              [
+                `<div class="li"><span class="ico">${b.category === 'Subscriptions' ? '📺' : '🧾'}</span>`,
+                `<div class="grow"><div class="t">${esc(b.name)}${b.autoLog ? ' <span class="badge">auto</span>' : ''}</div>`,
+                `<div class="small dim">${usd(b.amount)}</div></div><span class="pill p-${s.k}">${s.label}</span>`,
+                `<button class="small ghost" data-pay="${b.id}">Paid</button></div>`,
+              ].join(''),
+            )
+            .join('')
+        : `<p class="empty">${S.bills.length ? 'All bills paid this month. 👑' : 'No bills yet. Import a statement and the vault will find them.'}</p>`
+    }<a class="btn ghost" href="#/bills">Manage bills</a>`,
+    '</div>\n',
+    `   <div class="card"><h2>Where it went</h2>${donut(T.byCat)}</div></div>\n`,
+    `  <div class="two"><div class="card"><h2>Balance trend</h2>${trend()}</div>`,
+    `<div class="card"><h2>Month vs month</h2>${bars()}</div></div>\n`,
+    `  <div class="card"><a class="btn" href="#/import">${((BANK && BANK.links) || []).length ? '🔄 Bank sync' : '🔗 Link a bank'}</a> <a class="btn ghost" href="#/tx">✍ Add by hand</a>`,
+    '</div>',
+  ].join('');
   wireRecur(V['']);
   document
     .querySelectorAll('[data-pay]')
@@ -484,9 +540,16 @@ const ctTime = iso =>
 const prov = id => (BANK.providers || []).find(p => p.id === id) || {};
 function accRow(l, a) {
   const cr = a.kind === 'credit';
-  return `<div class="li acc"><span class="ico">${cr ? '💳' : '🏦'}</span><div class="grow"><div class="t">${esc(a.name)}</div><div class="small dim">${esc(a.org)}${a.available != null && !cr ? ` · ${usd(a.available)} available` : ''}</div>
-  <div class="accopts"><label class="ck"><input type="checkbox" data-inc="${esc(l.id)}|${esc(a.id)}" ${a.include ? 'checked' : ''}> count it</label><select class="kindsel" data-kind="${esc(l.id)}|${esc(a.id)}" aria-label="Account type"><option value="depository" ${!cr ? 'selected' : ''}>Bank</option><option value="credit" ${cr ? 'selected' : ''}>Credit card</option></select></div></div>
-  <span class="amt ${a.balance < 0 ? 'neg' : 'pos'}">${a.balance == null ? '?' : usd(a.balance)}</span></div>`;
+  return [
+    `<div class="li acc"><span class="ico">${cr ? '💳' : '🏦'}</span><div class="grow">`,
+    `<div class="t">${esc(a.name)}</div><div class="small dim">${esc(a.org)}${a.available != null && !cr ? ` · ${usd(a.available)} available` : ''}</div>\n`,
+    `  <div class="accopts"><label class="ck"><input type="checkbox" data-inc="${esc(l.id)}|${esc(a.id)}" ${a.include ? 'checked' : ''}> count it</label>`,
+    `<select class="kindsel" data-kind="${esc(l.id)}|${esc(a.id)}" aria-label="Account type">`,
+    `<option value="depository" ${!cr ? 'selected' : ''}>Bank</option><option value="credit" ${cr ? 'selected' : ''}>Credit card</option>`,
+    '</select></div></div>\n',
+    `  <span class="amt ${a.balance < 0 ? 'neg' : 'pos'}">${a.balance == null ? '?' : usd(a.balance)}</span>`,
+    '</div>',
+  ].join('');
 }
 function linkCard(l) {
   const st =
@@ -500,11 +563,17 @@ function linkCard(l) {
             ? `<span class="pill p-over">Error</span>`
             : `<span class="pill p-later">New</span>`;
   const r = l.lastResult;
-  return `<div class="card linkcard"><div class="li" style="border:0"><span class="ico">🔗</span><div class="grow"><div class="t">${esc(l.label)}</div><div class="small dim" title="${esc(ctTime(l.lastSync))}">via ${esc(l.providerName)} · last sync ${esc(ago(l.lastSync))}${l.lastSync ? ` (${esc(ctTime(l.lastSync))})` : ''}</div></div>${st}</div>
-  ${l.error ? `<div class="warn">⚠ ${esc(l.error)}</div>` : ''}${(l.warnings || []).map(w => `<div class="small gold">ⓘ ${esc(w)}</div>`).join('')}
-  ${r && r.at ? `<p class="small dim">Last pull: ${r.added} new${r.dupes ? `, ${r.dupes} already had` : ''}${r.transfers ? `, ${r.transfers} transfers between your accounts ignored` : ''}${r.billsPaid ? `, ${r.billsPaid} bills marked paid` : ''}.</p>` : ''}
-  ${(l.accounts || []).map(a => accRow(l, a)).join('') || '<p class="small dim">No accounts yet.</p>'}
-  <div class="row" style="flex-wrap:nowrap"><button class="small" data-sync="${esc(l.id)}">🔄 Sync now</button><button class="small ghost danger" data-unlink="${esc(l.id)}">Unlink</button></div></div>`;
+  return [
+    '<div class="card linkcard"><div class="li" style="border:0"><span class="ico">🔗</span>',
+    `<div class="grow"><div class="t">${esc(l.label)}</div><div class="small dim" title="${esc(ctTime(l.lastSync))}">via ${esc(l.providerName)} · last sync ${esc(ago(l.lastSync))}${l.lastSync ? ` (${esc(ctTime(l.lastSync))})` : ''}</div>`,
+    `</div>${st}</div>\n`,
+    `  ${l.error ? `<div class="warn">⚠ ${esc(l.error)}</div>` : ''}${(l.warnings || []).map(w => `<div class="small gold">ⓘ ${esc(w)}</div>`).join('')}\n`,
+    `  ${r && r.at ? `<p class="small dim">Last pull: ${r.added} new${r.dupes ? `, ${r.dupes} already had` : ''}${r.transfers ? `, ${r.transfers} transfers between your accounts ignored` : ''}${r.billsPaid ? `, ${r.billsPaid} bills marked paid` : ''}.</p>` : ''}\n`,
+    `  ${(l.accounts || []).map(a => accRow(l, a)).join('') || '<p class="small dim">No accounts yet.</p>'}\n`,
+    `  <div class="row" style="flex-wrap:nowrap"><button class="small" data-sync="${esc(l.id)}">🔄 Sync now</button>`,
+    `<button class="small ghost danger" data-unlink="${esc(l.id)}">Unlink</button>`,
+    '</div></div>',
+  ].join('');
 }
 function linkPanel() {
   if (!BANK) {
@@ -515,19 +584,30 @@ function linkPanel() {
   const pl = prov('plaid');
   const L = BANK.links || [];
   if (!BANK.configured) {
-    return `<div class="card"><h2>🔗 Link a bank</h2><p class="small dim">Live bank linking isn't switched on yet on this server. Import a CSV below for now.</p></div>`;
+    return [
+      `<div class="card"><h2>🔗 Link a bank</h2><p class="small dim">Live bank linking isn't switched on yet on this server. Import a CSV below for now.</p>`,
+      '</div>',
+    ].join('');
   }
-  return `<div class="card linkhero"><h2>🔗 Link a bank</h2><p class="small dim">Checking, savings and credit cards sync on their own about every ${BANK.syncEveryHours} hours (and when you open the app). Read-only: nothing here can move money. Your link is encrypted and private to your account.</p>
-  ${
-    sf.enabled
-      ? `<ol class="steps"><li>Open <a class="gold" href="${esc(sf.createUrl)}" target="_blank" rel="noopener noreferrer">SimpleFIN Bridge</a>, connect your banks and cards there (${esc(sf.cost)}).</li><li>Make a <b>setup token</b> and copy it.</li><li>Paste it here.</li></ol>
-  <label for="sft">SimpleFIN setup token</label><textarea id="sft" rows="3" placeholder="aHR0cHM6Ly9..." autocomplete="off" spellcheck="false"></textarea>
-  <button id="sfgo">🔗 Link my accounts</button><div class="err" id="sfe" role="alert"></div>`
-      : ''
-  }
-  ${te.enabled ? `<div class="alt"><b>Or Teller</b> <span class="small dim">(${esc(te.environment)})</span>${te.appId ? `<button class="small ghost" id="tcgo">Connect with Teller</button>` : ''}${te.environment === 'sandbox' ? `<div class="row"><input id="tct" placeholder="Teller sandbox token, e.g. test_token_..." autocomplete="off"><button class="small ghost" id="tctgo" style="flex:0 0 auto">Link</button></div>` : ''}</div>` : ''}
-  ${pl.enabled ? `<div class="alt"><b>Or Plaid</b> <span class="small dim">(${esc(pl.environment)})</span> <button class="small ghost" id="plgo">Connect with Plaid</button></div>` : ''}</div>
-  ${L.length ? `<h2 style="margin-top:4px">Linked accounts</h2>${L.map(linkCard).join('')}` : ''}`;
+  return [
+    `<div class="card linkhero"><h2>🔗 Link a bank</h2><p class="small dim">Checking, savings and credit cards sync on their own about every ${BANK.syncEveryHours} hours (and when you open the app). Read-only: nothing here can move money. Your link is encrypted and private to your account.</p>\n`,
+    `  ${
+      sf.enabled
+        ? [
+            `<ol class="steps"><li>Open <a class="gold" href="${esc(sf.createUrl)}" target="_blank" rel="noopener noreferrer">SimpleFIN Bridge</a>, connect your banks and cards there (${esc(sf.cost)}).</li>`,
+            '<li>Make a <b>setup token</b> and copy it.</li><li>Paste it here.</li>',
+            '</ol>\n',
+            '  <label for="sft">SimpleFIN setup token</label><textarea id="sft" rows="3" placeholder="aHR0cHM6Ly9..." autocomplete="off" spellcheck="false">',
+            '</textarea>\n',
+            '  <button id="sfgo">🔗 Link my accounts</button><div class="err" id="sfe" role="alert">',
+            '</div>',
+          ].join('')
+        : ''
+    }\n`,
+    `  ${te.enabled ? `<div class="alt"><b>Or Teller</b> <span class="small dim">(${esc(te.environment)})</span>${te.appId ? `<button class="small ghost" id="tcgo">Connect with Teller</button>` : ''}${te.environment === 'sandbox' ? ['<div class="row"><input id="tct" placeholder="Teller sandbox token, e.g. test_token_..." autocomplete="off">', '<button class="small ghost" id="tctgo" style="flex:0 0 auto">Link</button>', '</div>'].join('') : ''}</div>` : ''}\n`,
+    `  ${pl.enabled ? [`<div class="alt"><b>Or Plaid</b> <span class="small dim">(${esc(pl.environment)})</span> <button class="small ghost" id="plgo">Connect with Plaid</button>`, '</div>'].join('') : ''}</div>\n`,
+    `  ${L.length ? `<h2 style="margin-top:4px">Linked accounts</h2>${L.map(linkCard).join('')}` : ''}`,
+  ].join('');
 }
 async function doLink(body, errEl) {
   const btns = document.querySelectorAll('.linkhero button');
@@ -692,14 +772,24 @@ function linkedSummary() {
     .filter(Boolean)
     .sort()
     .pop();
-  return `<div class="card"><h2>🏦 Linked accounts</h2><div class="grid"><div class="stat"><div class="k">Cash</div><div class="v pos">${usd0(cash)}</div></div><div class="stat"><div class="k">Cards owed</div><div class="v ${owed < 0 ? 'neg' : ''}">${usd0(Math.abs(owed))}</div></div></div>
-  ${A.slice(0, 6)
-    .map(
-      a =>
-        `<div class="li"><span class="ico">${a.kind === 'credit' ? '💳' : '🏦'}</span><div class="grow"><div class="t">${esc(a.name)}</div><div class="small dim">${esc(a.org)}</div></div><span class="amt ${a.balance < 0 ? 'neg' : 'pos'}">${a.balance == null ? '?' : usd(a.balance)}</span></div>`,
-    )
-    .join('')}
-  <p class="small dim">Synced ${esc(ago(last))}${L.some(l => l.status === 'needs_attention' || l.status === 'error') ? ' · <b class="neg">a link needs attention</b>' : ''} · <a class="gold" href="#/import">manage</a></p></div>`;
+  return [
+    '<div class="card"><h2>🏦 Linked accounts</h2><div class="grid"><div class="stat">',
+    `<div class="k">Cash</div><div class="v pos">${usd0(cash)}</div></div><div class="stat">`,
+    `<div class="k">Cards owed</div><div class="v ${owed < 0 ? 'neg' : ''}">${usd0(Math.abs(owed))}</div>`,
+    '</div></div>\n',
+    `  ${A.slice(0, 6)
+      .map(a =>
+        [
+          `<div class="li"><span class="ico">${a.kind === 'credit' ? '💳' : '🏦'}</span>`,
+          `<div class="grow"><div class="t">${esc(a.name)}</div><div class="small dim">${esc(a.org)}</div>`,
+          `</div><span class="amt ${a.balance < 0 ? 'neg' : 'pos'}">${a.balance == null ? '?' : usd(a.balance)}</span>`,
+          '</div>',
+        ].join(''),
+      )
+      .join('')}\n`,
+    `  <p class="small dim">Synced ${esc(ago(last))}${L.some(l => l.status === 'needs_attention' || l.status === 'error') ? ' · <b class="neg">a link needs attention</b>' : ''} · <a class="gold" href="#/import">manage</a>`,
+    '</p></div>',
+  ].join('');
 }
 
 // ---------- import ----------
@@ -709,9 +799,14 @@ V.import = async () => {
     await loadRecurring();
   }
   await loadBank();
-  app.innerHTML = `<h1>Link & import</h1>${linkPanel()}<div class="card"><h2>📄 Or upload a statement</h2><p class="small dim">In your bank app look for <b>Download / Export transactions</b> and pick CSV (or OFX/QFX). Everything stays private to your account.</p>
-  <label class="drop" id="drop"><input type="file" id="file" accept=".csv,.ofx,.qfx,.txt,text/csv"><span class="dropicon">📄</span><b>Tap to pick a file</b><span class="small dim">or drop it here</span></label><div class="err" id="ie"></div></div>
-  <div id="prev"></div><div id="rec">${recurCards(RECUR, 50) || ''}</div>`;
+  app.innerHTML = [
+    `<h1>Link & import</h1>${linkPanel()}<div class="card"><h2>📄 Or upload a statement</h2>`,
+    '<p class="small dim">In your bank app look for <b>Download / Export transactions</b> and pick CSV (or OFX/QFX). Everything stays private to your account.</p>\n',
+    '  <label class="drop" id="drop"><input type="file" id="file" accept=".csv,.ofx,.qfx,.txt,text/csv">',
+    '<span class="dropicon">📄</span><b>Tap to pick a file</b><span class="small dim">or drop it here</span>',
+    '</label><div class="err" id="ie"></div></div>\n',
+    `  <div id="prev"></div><div id="rec">${recurCards(RECUR, 50) || ''}</div>`,
+  ].join('');
   wireRecur(V.import);
   wireLink();
   const handle = file => {
@@ -756,10 +851,12 @@ function drawPrev() {
   PREV.sel = sel;
   const n = () => PREV.sel.filter(Boolean).length;
   const cats = r => opts(r.type === 'income' ? S.INCOME : S.EXPENSE, r.category);
-  $('#prev').innerHTML =
-    `<div class="card"><h2>Preview · ${esc(PREV.name)}</h2><p class="small dim">${R.length} transactions found${PREV.columns && PREV.columns.date ? ` (date: “${esc(PREV.columns.date)}”, description: “${esc(PREV.columns.description || '?')}”, amount: “${esc(PREV.columns.amount)}”)` : ''}. ${PREV.dupes ? `<b class="gold">${PREV.dupes} already in your vault</b>, unchecked. ` : ''}${PREV.skipped ? `${PREV.skipped} skipped (pending/blank). ` : ''}Fix any category before importing.</p>
-  <div class="prevlist">${R.map((r, i) => `<div class="prow ${r.dup ? 'isdup' : ''}"><input type="checkbox" data-i="${i}" ${sel[i] ? 'checked' : ''} aria-label="Import ${esc(r.desc)}"><div class="grow"><div class="t">${esc(r.merchantName || r.desc)}${r.dup ? ' <span class="badge dupb">dup</span>' : ''}${r.by === 'rule' ? ' <span class="badge">your rule</span>' : ''}</div><div class="small dim">${r.date} · ${esc(r.desc.slice(0, 48))}</div></div><span class="amt ${r.type === 'income' ? 'pos' : 'gold'}">${r.type === 'income' ? '+' : '-'}${usd(r.amount)}</span><select class="pcat" data-i="${i}" aria-label="Category">${cats(r)}</select></div>`).join('')}</div>
-  <button id="go">Import <span id="cnt">${n()}</span> transactions</button> <button class="ghost" id="cx">Cancel</button><div class="err" id="ge"></div></div>`;
+  $('#prev').innerHTML = [
+    `<div class="card"><h2>Preview · ${esc(PREV.name)}</h2><p class="small dim">${R.length} transactions found${PREV.columns && PREV.columns.date ? ` (date: “${esc(PREV.columns.date)}”, description: “${esc(PREV.columns.description || '?')}”, amount: “${esc(PREV.columns.amount)}”)` : ''}. ${PREV.dupes ? `<b class="gold">${PREV.dupes} already in your vault</b>, unchecked. ` : ''}${PREV.skipped ? `${PREV.skipped} skipped (pending/blank). ` : ''}Fix any category before importing.</p>\n`,
+    `  <div class="prevlist">${R.map((r, i) => [`<div class="prow ${r.dup ? 'isdup' : ''}"><input type="checkbox" data-i="${i}" ${sel[i] ? 'checked' : ''} aria-label="Import ${esc(r.desc)}">`, `<div class="grow"><div class="t">${esc(r.merchantName || r.desc)}${r.dup ? ' <span class="badge dupb">dup</span>' : ''}${r.by === 'rule' ? ' <span class="badge">your rule</span>' : ''}</div>`, `<div class="small dim">${r.date} · ${esc(r.desc.slice(0, 48))}</div></div>`, `<span class="amt ${r.type === 'income' ? 'pos' : 'gold'}">${r.type === 'income' ? '+' : '-'}${usd(r.amount)}</span>`, `<select class="pcat" data-i="${i}" aria-label="Category">${cats(r)}</select>`, '</div>'].join('')).join('')}</div>\n`,
+    `  <button id="go">Import <span id="cnt">${n()}</span> transactions</button> <button class="ghost" id="cx">Cancel</button>`,
+    '<div class="err" id="ge"></div></div>',
+  ].join('');
   document.querySelectorAll('.prow input').forEach(
     c =>
       (c.onchange = () => {
@@ -802,9 +899,16 @@ function drawPrev() {
 }
 
 function quickAdd() {
-  return `<div class="seg"><button class="ghost sel" data-type="expense" id="qtE">💸 Spent</button><button class="ghost" data-type="income" id="qtI">💵 Got paid</button></div>
-  <div class="row"><div><label>Amount</label><input id="qa" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00"></div><div><label>Date</label><input id="qd" type="date" value="${today()}"></div></div>
-  <label>Category (tap to save)</label><div class="quick" id="qc"></div><label>Note (optional)</label><input id="qn" maxlength="120" placeholder="tacos again">`;
+  return [
+    '<div class="seg"><button class="ghost sel" data-type="expense" id="qtE">💸 Spent</button>',
+    '<button class="ghost" data-type="income" id="qtI">💵 Got paid</button>',
+    '</div>\n',
+    '  <div class="row"><div><label>Amount</label><input id="qa" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00">',
+    `</div><div><label>Date</label><input id="qd" type="date" value="${today()}">`,
+    '</div></div>\n',
+    '  <label>Category (tap to save)</label><div class="quick" id="qc"></div>',
+    '<label>Note (optional)</label><input id="qn" maxlength="120" placeholder="tacos again">',
+  ].join('');
 }
 function wireQuick(after) {
   let type = 'expense';
@@ -865,10 +969,18 @@ V.tx = () => {
     .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
   const inc = L.filter(t => t.type === 'income').reduce((a, t) => a + t.amount, 0);
   const exp = L.filter(t => t.type === 'expense').reduce((a, t) => a + t.amount, 0);
-  app.innerHTML = `<h1>Money in & out</h1><div class="card"><a class="btn" href="#/import">🔗 Link bank / import</a><details class="manual"><summary>✍ Add one by hand</summary>${quickAdd()}</details></div>
-  <div class="card"><div class="filters"><div><label>Month</label><select id="fm"><option value="all">All time</option>${months.map(x => `<option value="${x}" ${x === m ? 'selected' : ''}>${monthName(x)}</option>`).join('')}</select></div><div><label>Category</label><select id="fc"><option value="">Everything</option>${opts([...S.EXPENSE, ...S.INCOME], txF.c)}</select></div><a class="btn ghost" href="/api/export.csv" download>⬇ CSV</a></div>
-  <p class="small dim">${L.length} transactions · <span class="pos">+${usd(inc)}</span> · <span class="gold">-${usd(exp)}</span></p>
-  ${L.map(t => `<div class="li"><span class="ico">${ICON[t.category] || '🪙'}</span><div class="grow"><div class="t">${esc(t.merchantName || t.note || t.category)}${t.source === 'auto' ? ' <span class="badge">auto</span>' : t.source === 'bank' ? ' <span class="badge">bank</span>' : ''}</div><div class="small dim">${esc(t.category)}${t.note && t.merchantName ? ' · ' + esc(t.note) : ''}</div><div class="small dim">${new Date(t.date + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })}</div></div><span class="amt ${t.type === 'income' ? 'pos' : 'gold'}">${t.type === 'income' ? '+' : '-'}${usd(t.amount)}</span><button class="small ghost" data-e="${t.id}" aria-label="Edit">✎</button></div><div id="ed-${t.id}"></div>`).join('') || '<p class="empty">Nothing here yet. Tap a category above to log something.</p>'}</div>`;
+  app.innerHTML = [
+    '<h1>Money in & out</h1><div class="card"><a class="btn" href="#/import">🔗 Link bank / import</a>',
+    `<details class="manual"><summary>✍ Add one by hand</summary>${quickAdd()}</details>`,
+    '</div>\n',
+    '  <div class="card"><div class="filters"><div><label>Month</label><select id="fm">',
+    `<option value="all">All time</option>${months.map(x => `<option value="${x}" ${x === m ? 'selected' : ''}>${monthName(x)}</option>`).join('')}</select>`,
+    `</div><div><label>Category</label><select id="fc"><option value="">Everything</option>${opts([...S.EXPENSE, ...S.INCOME], txF.c)}</select>`,
+    '</div><a class="btn ghost" href="/api/export.csv" download>⬇ CSV</a></div>\n',
+    `  <p class="small dim">${L.length} transactions · <span class="pos">+${usd(inc)}</span> · <span class="gold">-${usd(exp)}</span>`,
+    '</p>\n',
+    `  ${L.map(t => [`<div class="li"><span class="ico">${ICON[t.category] || '🪙'}</span><div class="grow">`, `<div class="t">${esc(t.merchantName || t.note || t.category)}${t.source === 'auto' ? ' <span class="badge">auto</span>' : t.source === 'bank' ? ' <span class="badge">bank</span>' : ''}</div>`, `<div class="small dim">${esc(t.category)}${t.note && t.merchantName ? ' · ' + esc(t.note) : ''}</div>`, `<div class="small dim">${new Date(t.date + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })}</div>`, `</div><span class="amt ${t.type === 'income' ? 'pos' : 'gold'}">${t.type === 'income' ? '+' : '-'}${usd(t.amount)}</span>`, `<button class="small ghost" data-e="${t.id}" aria-label="Edit">✎</button>`, `</div><div id="ed-${t.id}"></div>`].join('')).join('') || '<p class="empty">Nothing here yet. Tap a category above to log something.</p>'}</div>`,
+  ].join('');
   wireQuick();
   $('#fm').onchange = e => {
     txF.m = e.target.value;
@@ -887,9 +999,18 @@ V.tx = () => {
           box.innerHTML = '';
           return;
         }
-        box.innerHTML = `<div class="card" style="margin:6px 0 12px"><div class="row"><div><label>Type</label><select id="et"><option value="expense" ${t.type === 'expense' ? 'selected' : ''}>Spent</option><option value="income" ${t.type === 'income' ? 'selected' : ''}>Income</option></select></div><div><label>Amount</label><input id="ea" type="number" step="0.01" inputmode="decimal" value="${t.amount}"></div></div>
-   <div class="row"><div><label>Category</label><select id="ec"></select></div><div><label>Date</label><input id="edt" type="date" value="${t.date}"></div></div><label>Note</label><input id="en" maxlength="120" value="${esc(t.note)}">
-   <button id="es">Save</button> <button class="ghost danger" id="ex">Delete</button><div class="err" id="ee"></div></div>`;
+        box.innerHTML = [
+          '<div class="card" style="margin:6px 0 12px"><div class="row"><div><label>Type</label>',
+          `<select id="et"><option value="expense" ${t.type === 'expense' ? 'selected' : ''}>Spent</option>`,
+          `<option value="income" ${t.type === 'income' ? 'selected' : ''}>Income</option>`,
+          `</select></div><div><label>Amount</label><input id="ea" type="number" step="0.01" inputmode="decimal" value="${t.amount}">`,
+          '</div></div>\n',
+          '   <div class="row"><div><label>Category</label><select id="ec"></select>',
+          `</div><div><label>Date</label><input id="edt" type="date" value="${t.date}">`,
+          `</div></div><label>Note</label><input id="en" maxlength="120" value="${esc(t.note)}">\n`,
+          '   <button id="es">Save</button> <button class="ghost danger" id="ex">Delete</button>',
+          '<div class="err" id="ee"></div></div>',
+        ].join('');
         const cats = () => {
           $('#ec').innerHTML = opts($('#et').value === 'income' ? S.INCOME : S.EXPENSE, t.category);
         };
@@ -909,7 +1030,12 @@ V.tx = () => {
             });
             await load();
             if (t.merchant && nc !== oldCat) {
-              box.innerHTML = `<div class="card rulecard"><b>Always file ${esc(t.merchantName || t.merchant)} as ${esc(nc)}?</b><div class="row" style="margin-top:4px"><button class="small" id="r2">Always + fix past</button><button class="small ghost" id="r1">Always</button><button class="small ghost" id="r0">Just this once</button></div></div>`;
+              box.innerHTML = [
+                `<div class="card rulecard"><b>Always file ${esc(t.merchantName || t.merchant)} as ${esc(nc)}?</b>`,
+                '<div class="row" style="margin-top:4px"><button class="small" id="r2">Always + fix past</button>',
+                '<button class="small ghost" id="r1">Always</button><button class="small ghost" id="r0">Just this once</button>',
+                '</div></div>',
+              ].join('');
               const rule = async past => {
                 const r = await api('/api/rules', 'POST', {
                   merchant: t.merchant,
@@ -957,17 +1083,28 @@ V.budgets = () => {
       `${c} budget? More like ${c} suggestion. ${usd0(over)} over.`,
       `You and ${c} need to talk. ${usd0(over)} over.`,
     ]);
-  app.innerHTML = `<h1>Budgets · ${shortMonth(ym(today()))}</h1><div class="card"><h2>🤖 Auto budget</h2><p class="small dim">Sets limits from what you actually spent the last 3 months.</p><div class="row"><button id="ab">Auto budget</button><button class="ghost" id="abt">Auto + trim 10%</button></div><p class="small dim">Rent, bills and subscriptions aren't trimmed.</p><div></div></div><div class="card">${S.EXPENSE.map(
-    c => {
+  app.innerHTML = [
+    `<h1>Budgets · ${shortMonth(ym(today()))}</h1><div class="card"><h2>🤖 Auto budget</h2>`,
+    '<p class="small dim">Sets limits from what you actually spent the last 3 months.</p>',
+    '<div class="row"><button id="ab">Auto budget</button><button class="ghost" id="abt">Auto + trim 10%</button>',
+    `</div><p class="small dim">Rent, bills and subscriptions aren't trimmed.</p>`,
+    `<div></div></div><div class="card">${S.EXPENSE.map(c => {
       const l = S.budgets[c] || 0;
       const sp = T.byCat[c] || 0;
       const pct = l ? (sp / l) * 100 : 0;
       const cls = !l ? '' : pct >= 100 ? 'r' : pct >= 75 ? 'y' : '';
-      return `<div class="li" style="display:block"><div style="display:flex;align-items:center;gap:10px"><span class="ico">${ICON[c]}</span><div class="grow"><div class="t">${c}</div><div class="small dim">${usd(sp)} spent${l ? ` of ${usd0(l)} · ${l - sp >= 0 ? usd0(l - sp) + ' left' : 'busted'}` : ' · no limit set'}</div></div><input class="blim" data-c="${c}" type="number" inputmode="decimal" min="0" step="1" value="${l || ''}" placeholder="limit" style="width:96px" aria-label="${c} monthly limit"></div>
-   ${l ? `<div class="bar ${cls}"><div style="width:${Math.min(pct, 100)}%"></div></div>${pct >= 100 ? `<div class="warn">${roast(c, sp - l)}</div>` : pct >= 75 ? `<div class="small gold">Getting close, easy there.</div>` : ''}` : ''}</div>`;
-    },
-  ).join('')}
-   <button id="bs">Save limits</button><div class="err" id="be"></div></div>`;
+      return [
+        '<div class="li" style="display:block"><div style="display:flex;align-items:center;gap:10px">',
+        `<span class="ico">${ICON[c]}</span><div class="grow"><div class="t">${c}</div>`,
+        `<div class="small dim">${usd(sp)} spent${l ? ` of ${usd0(l)} · ${l - sp >= 0 ? usd0(l - sp) + ' left' : 'busted'}` : ' · no limit set'}</div>`,
+        `</div><input class="blim" data-c="${c}" type="number" inputmode="decimal" min="0" step="1" value="${l || ''}" placeholder="limit" style="width:96px" aria-label="${c} monthly limit">`,
+        '</div>\n',
+        `   ${l ? [`<div class="bar ${cls}"><div style="width:${Math.min(pct, 100)}%"></div>`, `</div>${pct >= 100 ? `<div class="warn">${roast(c, sp - l)}</div>` : pct >= 75 ? `<div class="small gold">Getting close, easy there.</div>` : ''}`].join('') : ''}</div>`,
+      ].join('');
+    }).join('')}\n`,
+    '   <button id="bs">Save limits</button><div class="err" id="be"></div>',
+    '</div>',
+  ].join('');
   const auto = async trim => {
     try {
       await api('/api/budgets/auto', 'POST', { trim });
@@ -1016,9 +1153,20 @@ V.bills = () => {
     .sort((a, b) => a.s.due.localeCompare(b.s.due));
   const tot = S.bills.reduce((a, b) => a + b.amount, 0);
   const left = L.filter(x => x.s.k !== 'paid').reduce((a, x) => a + x.b.amount, 0);
-  app.innerHTML = `<h1>Bills</h1><div class="grid"><div class="card stat"><div class="k">Monthly bills</div><div class="v gold">${usd0(tot)}</div></div><div class="card stat"><div class="k">Still to pay</div><div class="v ${left ? 'neg' : 'pos'}">${usd0(left)}</div></div></div>
-  <div class="card">${L.map(({ b, s }) => `<div class="li"><span class="ico">🧾</span><div class="grow"><div class="t">${esc(b.name)}</div><div class="small dim">${usd(b.amount)} · due the ${ord(b.dueDay)} · ${esc(b.category || 'Bills')}</div><label class="ck"><input type="checkbox" data-al="${b.id}" ${b.autoLog ? 'checked' : ''}> auto-log</label></div><span class="pill p-${s.k}">${s.label}</span>${s.k === 'paid' ? `<button class="small ghost" data-un="${b.id}">Undo</button>` : `<button class="small" data-pay="${b.id}">Paid</button>`}<button class="small ghost" data-x="${b.id}" aria-label="Delete">✕</button></div>`).join('') || '<p class="empty">No bills yet. Lucky you, or you forgot some.</p>'}</div>
-  <div class="card"><h2>Add a bill</h2><div class="row"><div><label>Name</label><input id="bn" maxlength="40" placeholder="Phone"></div><div><label>Amount</label><input id="ba" type="number" step="0.01" inputmode="decimal"></div><div><label>Due day</label><input id="bd" type="number" min="1" max="31" placeholder="15"></div></div><div class="row"><div><label>Type</label><select id="bc">${opts(S.BILL_CATS)}</select></div><div><label class="ck" style="margin-top:30px"><input type="checkbox" id="bal" checked> Auto-log each month</label></div></div><button id="bg">Add bill</button><div class="err" id="be"></div></div>`;
+  app.innerHTML = [
+    '<h1>Bills</h1><div class="grid"><div class="card stat"><div class="k">Monthly bills</div>',
+    `<div class="v gold">${usd0(tot)}</div></div><div class="card stat"><div class="k">Still to pay</div>`,
+    `<div class="v ${left ? 'neg' : 'pos'}">${usd0(left)}</div></div></div>\n`,
+    `  <div class="card">${L.map(({ b, s }) => [`<div class="li"><span class="ico">🧾</span><div class="grow"><div class="t">${esc(b.name)}</div>`, `<div class="small dim">${usd(b.amount)} · due the ${ord(b.dueDay)} · ${esc(b.category || 'Bills')}</div>`, `<label class="ck"><input type="checkbox" data-al="${b.id}" ${b.autoLog ? 'checked' : ''}> auto-log</label>`, `</div><span class="pill p-${s.k}">${s.label}</span>${s.k === 'paid' ? `<button class="small ghost" data-un="${b.id}">Undo</button>` : `<button class="small" data-pay="${b.id}">Paid</button>`}<button class="small ghost" data-x="${b.id}" aria-label="Delete">✕</button>`, '</div>'].join('')).join('') || '<p class="empty">No bills yet. Lucky you, or you forgot some.</p>'}</div>\n`,
+    '  <div class="card"><h2>Add a bill</h2><div class="row"><div><label>Name</label>',
+    '<input id="bn" maxlength="40" placeholder="Phone"></div><div><label>Amount</label>',
+    '<input id="ba" type="number" step="0.01" inputmode="decimal"></div><div>',
+    '<label>Due day</label><input id="bd" type="number" min="1" max="31" placeholder="15">',
+    `</div></div><div class="row"><div><label>Type</label><select id="bc">${opts(S.BILL_CATS)}</select>`,
+    '</div><div><label class="ck" style="margin-top:30px"><input type="checkbox" id="bal" checked> Auto-log each month</label>',
+    '</div></div><button id="bg">Add bill</button><div class="err" id="be">',
+    '</div></div>',
+  ].join('');
   document
     .querySelectorAll('[data-pay]')
     .forEach(b => (b.onclick = () => markPaid(b.dataset.pay, true)));
@@ -1078,18 +1226,34 @@ function confetti() {
   setTimeout(() => c.remove(), 3800);
 }
 V.goals = () => {
-  app.innerHTML = `<h1>Savings goals</h1>${
-    S.goals
-      .map(g => {
-        const pct = Math.min(100, (g.saved / g.target) * 100);
-        const done = g.saved >= g.target;
-        return `<div class="card"><div style="display:flex;align-items:center;gap:10px"><span class="ico">${done ? '🏆' : '🐷'}</span><div class="grow"><div class="t">${esc(g.name)}</div><div class="small dim">${usd(g.saved)} of ${usd(g.target)}${done ? ' · CRUSHED IT' : ` · ${usd0(g.target - g.saved)} to go`}</div></div><b class="gold">${Math.floor(pct)}%</b></div>
-  <div class="bar"><div style="width:${pct}%"></div></div><div class="row" style="align-items:end"><div><label>Add money</label><input type="number" step="0.01" inputmode="decimal" id="ga-${g.id}" placeholder="20"></div><button data-add="${g.id}" style="flex:0 0 auto">+ Stash it</button><button class="ghost" data-take="${g.id}" style="flex:0 0 auto">− Take out</button><button class="ghost danger" data-gx="${g.id}" style="flex:0 0 auto" aria-label="Delete goal">✕</button></div></div>`;
-      })
-      .join('') ||
-    '<div class="card"><p class="empty">No goals yet. New PC? Car? Emergency fund? Pick one.</p></div>'
-  }
-  <div class="card"><h2>New goal</h2><div class="row"><div><label>Name</label><input id="gn" maxlength="40" placeholder="New GPU"></div><div><label>Target</label><input id="gt" type="number" inputmode="decimal"></div><div><label>Already saved</label><input id="gs" type="number" inputmode="decimal" value="0"></div></div><button id="gg">Create goal</button><div class="err" id="ge"></div></div>`;
+  app.innerHTML = [
+    `<h1>Savings goals</h1>${
+      S.goals
+        .map(g => {
+          const pct = Math.min(100, (g.saved / g.target) * 100);
+          const done = g.saved >= g.target;
+          return [
+            '<div class="card"><div style="display:flex;align-items:center;gap:10px">',
+            `<span class="ico">${done ? '🏆' : '🐷'}</span><div class="grow"><div class="t">${esc(g.name)}</div>`,
+            `<div class="small dim">${usd(g.saved)} of ${usd(g.target)}${done ? ' · CRUSHED IT' : ` · ${usd0(g.target - g.saved)} to go`}</div>`,
+            `</div><b class="gold">${Math.floor(pct)}%</b></div>\n`,
+            `  <div class="bar"><div style="width:${pct}%"></div></div><div class="row" style="align-items:end">`,
+            `<div><label>Add money</label><input type="number" step="0.01" inputmode="decimal" id="ga-${g.id}" placeholder="20">`,
+            `</div><button data-add="${g.id}" style="flex:0 0 auto">+ Stash it</button>`,
+            `<button class="ghost" data-take="${g.id}" style="flex:0 0 auto">− Take out</button>`,
+            `<button class="ghost danger" data-gx="${g.id}" style="flex:0 0 auto" aria-label="Delete goal">✕</button>`,
+            '</div></div>',
+          ].join('');
+        })
+        .join('') ||
+      '<div class="card"><p class="empty">No goals yet. New PC? Car? Emergency fund? Pick one.</p></div>'
+    }\n`,
+    '  <div class="card"><h2>New goal</h2><div class="row"><div><label>Name</label>',
+    '<input id="gn" maxlength="40" placeholder="New GPU"></div><div><label>Target</label>',
+    '<input id="gt" type="number" inputmode="decimal"></div><div><label>Already saved</label>',
+    '<input id="gs" type="number" inputmode="decimal" value="0"></div></div>',
+    '<button id="gg">Create goal</button><div class="err" id="ge"></div></div>',
+  ].join('');
   const add = async (id, sign) => {
     const g = S.goals.find(x => x.id === id);
     const was = g.saved >= g.target;
@@ -1149,11 +1313,21 @@ V.goals = () => {
 V.settings = () => {
   const p = S.pay || {};
   const np = nextPayday();
-  app.innerHTML = `<h1>Payday</h1><div class="card"><p class="dim">Tell the vault when the money lands and it'll count down and work out a per-day allowance.</p>
-  <label>How often</label><select id="pf"><option value="weekly">Every week</option><option value="biweekly">Every 2 weeks</option><option value="monthly">Once a month</option></select>
-  <div class="row"><div><label>Typical paycheck</label><input id="pa" type="number" step="0.01" inputmode="decimal" value="${p.amount || ''}"></div><div><label>A recent payday</label><input id="pd" type="date" value="${p.anchor || ''}"></div></div>
-  <label class="ck" style="margin-top:12px"><input type="checkbox" id="pau" ${p.auto ? 'checked' : ''}> Auto-log each paycheck on payday (skipped if your bank import already has it)</label><button id="ps">Save</button><div class="err" id="pe"></div>${np ? `<p class="gold" style="margin-top:12px">Next payday: ${np}</p>` : ''}</div>
-  <div class="card"><h2>Your rules</h2>${S.rules.length ? S.rules.map(r => `<div class="li"><div class="grow"><b>${esc(r.merchant)}</b> → ${esc(r.category)}</div><button class="small ghost" data-rd="${r.id}">✕</button></div>`).join('') : '<p class="small dim">None yet. Change a transaction\'s category and the vault offers to remember it.</p>'}</div><div class="card"><h2>Your data</h2><p class="dim small">Private to your account. Nobody else can see it.</p><a class="btn ghost" href="/api/export.csv" download>⬇ Export transactions (CSV)</a></div>`;
+  app.innerHTML = [
+    `<h1>Payday</h1><div class="card"><p class="dim">Tell the vault when the money lands and it'll count down and work out a per-day allowance.</p>\n`,
+    '  <label>How often</label><select id="pf"><option value="weekly">Every week</option>',
+    '<option value="biweekly">Every 2 weeks</option><option value="monthly">Once a month</option>',
+    '</select>\n',
+    `  <div class="row"><div><label>Typical paycheck</label><input id="pa" type="number" step="0.01" inputmode="decimal" value="${p.amount || ''}">`,
+    `</div><div><label>A recent payday</label><input id="pd" type="date" value="${p.anchor || ''}">`,
+    '</div></div>\n',
+    `  <label class="ck" style="margin-top:12px"><input type="checkbox" id="pau" ${p.auto ? 'checked' : ''}> Auto-log each paycheck on payday (skipped if your bank import already has it)</label>`,
+    `<button id="ps">Save</button><div class="err" id="pe"></div>${np ? `<p class="gold" style="margin-top:12px">Next payday: ${np}</p>` : ''}</div>\n`,
+    `  <div class="card"><h2>Your rules</h2>${S.rules.length ? S.rules.map(r => [`<div class="li"><div class="grow"><b>${esc(r.merchant)}</b> → ${esc(r.category)}</div>`, `<button class="small ghost" data-rd="${r.id}">✕</button></div>`].join('')).join('') : '<p class="small dim">None yet. Change a transaction\'s category and the vault offers to remember it.</p>'}</div>`,
+    '<div class="card"><h2>Your data</h2><p class="dim small">Private to your account. Nobody else can see it.</p>',
+    '<a class="btn ghost" href="/api/export.csv" download>⬇ Export transactions (CSV)</a>',
+    '</div>',
+  ].join('');
   document.querySelectorAll('[data-rd]').forEach(
     b =>
       (b.onclick = async () => {
@@ -1185,11 +1359,17 @@ function authView(mode) {
   document.body.classList.add('locked');
   $('#userbox').innerHTML = '';
   const reg = mode === 'register';
-  app.innerHTML = `<div class="card auth"><div class="coin">$</div><h1>${esc(TITLE)}</h1><p class="dim">${reg ? 'Make an account. No email, just a name and password.' : 'Log in to open the vault.'}</p>
-  <div class="tabs2"><button class="ghost ${reg ? '' : 'on'}" id="tl">Log in</button><button class="ghost ${reg ? 'on' : ''}" id="tr">Register</button></div>
-  <form id="af"><label for="au">Username</label><input id="au" autocomplete="username" maxlength="24" required><label for="ap">Password</label><input id="ap" type="password" autocomplete="${reg ? 'new-password' : 'current-password'}" required>
-  ${reg ? '<label for="ap2">Confirm password</label><input id="ap2" type="password" autocomplete="new-password" required><p class="small dim">3-24 letters, numbers, _ or -. Password 6+ characters. Forget it and an admin can reset it.</p>' : ''}
-  <button type="submit">${reg ? 'Create account' : 'Open the vault'}</button><div class="err" id="ae" role="alert"></div></form></div>`;
+  app.innerHTML = [
+    `<div class="card auth"><div class="coin">$</div><h1>${esc(TITLE)}</h1>`,
+    `<p class="dim">${reg ? 'Make an account. No email, just a name and password.' : 'Log in to open the vault.'}</p>\n`,
+    `  <div class="tabs2"><button class="ghost ${reg ? '' : 'on'}" id="tl">Log in</button>`,
+    `<button class="ghost ${reg ? 'on' : ''}" id="tr">Register</button></div>\n`,
+    '  <form id="af"><label for="au">Username</label><input id="au" autocomplete="username" maxlength="24" required>',
+    `<label for="ap">Password</label><input id="ap" type="password" autocomplete="${reg ? 'new-password' : 'current-password'}" required>\n`,
+    `  ${reg ? '<label for="ap2">Confirm password</label><input id="ap2" type="password" autocomplete="new-password" required><p class="small dim">3-24 letters, numbers, _ or -. Password 6+ characters. Forget it and an admin can reset it.</p>' : ''}\n`,
+    `  <button type="submit">${reg ? 'Create account' : 'Open the vault'}</button>`,
+    '<div class="err" id="ae" role="alert"></div></form></div>',
+  ].join('');
   $('#tl').onclick = () => authView();
   $('#tr').onclick = () => authView('register');
   $('#af').onsubmit = async e => {
