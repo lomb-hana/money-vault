@@ -1,0 +1,6 @@
+node_modules/
+data/
+screenshots/
+samples/*.csv
+samples/*.qfx
+package-lock.json

@@ -1,1 +1,21 @@
-{ "name": "money-vault", "version": "1.0.0", "private": true, "scripts": { "start": "node server.js", "test": "node --test test/bank-link.test.js" }, "engines": { "node": ">=18" } }
+{
+  "name": "money-vault",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint ."
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "eslint": "9.39.5",
+    "globals": "17.13.0",
+    "prettier": "3.9.10"
+  }
+}
