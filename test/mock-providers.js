@@ -5,7 +5,7 @@ const now = Math.floor(Date.now() / 1000);
 const ago = d => now - d * DAY;
 const USER = 'demo-user';
 const PASS = 'demo-pass-123';
-function accountSet(start) {
+function accountSet(startDate) {
   const tx = (id, d, amt, desc) => ({
     id,
     posted: ago(d),
@@ -13,7 +13,7 @@ function accountSet(start) {
     description: desc,
     transacted_at: ago(d),
   });
-  const keep = list => list.filter(t => !start || t.posted >= start);
+  const keep = list => list.filter(t => !startDate || t.posted >= startDate);
   return {
     errlist: [
       {

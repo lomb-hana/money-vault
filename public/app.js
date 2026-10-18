@@ -571,50 +571,51 @@ function wireLink() {
     return;
   }
   const q = s => document.querySelector(s);
-  q('#sfgo') &&
-    (q('#sfgo').onclick = () => {
-      const t = q('#sft').value.trim();
-      if (!t) {
-        return (q('#sfe').textContent = 'Paste your setup token first');
-      }
-      doLink({ provider: 'simplefin', token: t }, q('#sfe'));
-    });
-  q('#tctgo') &&
-    (q('#tctgo').onclick = () =>
-      doLink({ provider: 'teller', accessToken: q('#tct').value.trim() }));
-  q('#tcgo') &&
-    (q('#tcgo').onclick = async () => {
-      try {
-        const te = prov('teller');
-        await loadScript('https://cdn.teller.io/connect/connect.js');
-        window.TellerConnect.setup({
-          applicationId: te.appId,
-          environment: te.environment,
-          products: ['transactions', 'balance'],
-          onSuccess: e => doLink({ provider: 'teller', accessToken: e.accessToken }),
-        }).open();
-      } catch (x) {
-        toast('⚠ ' + x.message);
-      }
-    });
-  q('#plgo') &&
-    (q('#plgo').onclick = async () => {
-      try {
-        const { linkToken } = await api('/api/bank/plaid/link-token', 'POST', {});
-        await loadScript('https://cdn.plaid.com/link/v2/stable/link-initialize.js');
-        window.Plaid.create({
-          token: linkToken,
-          onSuccess: (pt, meta) =>
-            doLink({
-              provider: 'plaid',
-              publicToken: pt,
-              institution: meta && meta.institution && meta.institution.name,
-            }),
-        }).open();
-      } catch (x) {
-        toast('⚠ ' + x.message);
-      }
-    });
+  const onClick = (sel, handler) => {
+    const el = q(sel);
+    if (el) {
+      el.onclick = handler;
+    }
+  };
+  onClick('#sfgo', () => {
+    const t = q('#sft').value.trim();
+    if (!t) {
+      return (q('#sfe').textContent = 'Paste your setup token first');
+    }
+    doLink({ provider: 'simplefin', token: t }, q('#sfe'));
+  });
+  onClick('#tctgo', () => doLink({ provider: 'teller', accessToken: q('#tct').value.trim() }));
+  onClick('#tcgo', async () => {
+    try {
+      const te = prov('teller');
+      await loadScript('https://cdn.teller.io/connect/connect.js');
+      window.TellerConnect.setup({
+        applicationId: te.appId,
+        environment: te.environment,
+        products: ['transactions', 'balance'],
+        onSuccess: e => doLink({ provider: 'teller', accessToken: e.accessToken }),
+      }).open();
+    } catch (x) {
+      toast('⚠ ' + x.message);
+    }
+  });
+  onClick('#plgo', async () => {
+    try {
+      const { linkToken } = await api('/api/bank/plaid/link-token', 'POST', {});
+      await loadScript('https://cdn.plaid.com/link/v2/stable/link-initialize.js');
+      window.Plaid.create({
+        token: linkToken,
+        onSuccess: (pt, meta) =>
+          doLink({
+            provider: 'plaid',
+            publicToken: pt,
+            institution: meta && meta.institution && meta.institution.name,
+          }),
+      }).open();
+    } catch (x) {
+      toast('⚠ ' + x.message);
+    }
+  });
   document.querySelectorAll('[data-sync]').forEach(
     b =>
       (b.onclick = async () => {

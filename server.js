@@ -1,6 +1,15 @@
+// Money Vault HTTP server: static front end (public/), JSON API under /api, per-user vaults.
+// Zero runtime dependencies. Storage is a JSON file locally or one Supabase row in production.
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const sources = require('./lib/sources');
+const importer = require('./lib/importer');
+const auto = require('./lib/auto');
+const recurring = require('./lib/recurring');
+const { categorize, merchantOf, titleCase } = require('./lib/categorize');
+
+// ---- config
 const PORT = process.env.PORT || 3001;
 const PROD = process.env.NODE_ENV === 'production';
 const ADMIN_KEY = process.env.ADMIN_KEY || '';
@@ -19,6 +28,7 @@ const backend =
     : require('./store/json-store')(
         process.env.DATA_FILE || path.join(__dirname, 'data', 'db.json'),
       );
+// ---- categories and small helpers
 const EXPENSE = [
   'Food',
   'Gas',
@@ -72,6 +82,7 @@ const isDate = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '') && !isNaN(Date.parse(d))
 let store;
 let auth;
 let bank;
+// Each user's private data. New fields are added here (additive migration) so old vaults keep working.
 const vault = uid => {
   const d = store.read();
   const V = (d.vaults[uid] ||= {
@@ -85,14 +96,10 @@ const vault = uid => {
   V.dismissed ||= [];
   V.autoDone ||= [];
   return V;
-}; // additive migration
-const sources = require('./lib/sources');
-const importer = require('./lib/importer');
-const auto = require('./lib/auto');
-const recurring = require('./lib/recurring');
-const { categorize, merchantOf, titleCase } = require('./lib/categorize');
+};
 const BILL_CATS = ['Bills', 'Rent', 'Subscriptions'];
 
+// ---- transactions: validation and the shared import/bank-sync pipeline
 function validTx(b) {
   const type = b.type === 'income' ? 'income' : b.type === 'expense' ? 'expense' : null;
   const amount = money(b.amount);
@@ -190,19 +197,22 @@ const csvCell = v => {
   return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 };
 
+// ---- JSON API (every route here is behind login; req.user is set)
+// r = path segments after /api, m = HTTP method, b = parsed JSON body
 async function api(req, res, p, u) {
   const m = req.method;
   const uid = req.user.id;
   const r = p.slice(1);
-  const V = () => vault(uid);
-  const mut = fn => store.mutate(() => fn(V()));
-  const find = (list, id) => V()[list].find(x => x.id === id);
+  const userVault = () => vault(uid);
+  const mut = fn => store.mutate(() => fn(userVault()));
+  const find = (list, id) => userVault()[list].find(x => x.id === id);
   if (r[0] === 'state' && m === 'GET') {
-    if (auto.run(JSON.parse(JSON.stringify(V())), store.newId)) {
+    // Dry-run auto-logging on a copy first so we only write to the store when something is due.
+    if (auto.run(JSON.parse(JSON.stringify(userVault())), store.newId)) {
       await mut(V => auto.run(V, store.newId));
-    } // only write when something is due
+    }
     bank.kick(uid);
-    const { autoDone, links, ...pub } = V();
+    const { autoDone, links, ...pub } = userVault();
     return send(res, 200, {
       ...pub,
       today: auto.today(),
@@ -215,7 +225,7 @@ async function api(req, res, p, u) {
   }
   if (r[0] === 'export.csv' && m === 'GET') {
     const rows = [['date', 'type', 'category', 'amount', 'description', 'note', 'source']].concat(
-      V()
+      userVault()
         .tx.slice()
         .sort((a, b) => a.date.localeCompare(b.date))
         .map(t => [
@@ -284,7 +294,7 @@ async function api(req, res, p, u) {
     } catch (e) {
       return send(res, 400, { error: e.message });
     }
-    const rows = importer.prepare(parsed.rows, V());
+    const rows = importer.prepare(parsed.rows, userVault());
     return send(res, 200, {
       format: parsed.format,
       columns: parsed.columns,
@@ -383,17 +393,17 @@ async function api(req, res, p, u) {
   }
   // ---- recurring detection
   if (r[0] === 'recurring' && !r[1] && m === 'GET') {
-    const Vv = V();
+    const mine = userVault();
     const list = recurring
-      .detect(Vv.tx, { today: auto.today() })
-      .filter(x => !Vv.dismissed.includes(x.key))
+      .detect(mine.tx, { today: auto.today() })
+      .filter(x => !mine.dismissed.includes(x.key))
       .map(x => ({
         ...x,
         name: titleCase(x.merchant),
         already:
           x.type === 'expense'
-            ? Vv.bills.some(bb => bb.match === x.merchant)
-            : !!(Vv.pay.auto && Math.abs(Vv.pay.amount - x.amount) <= x.amount * 0.2),
+            ? mine.bills.some(bb => bb.match === x.merchant)
+            : !!(mine.pay.auto && Math.abs(mine.pay.amount - x.amount) <= x.amount * 0.2),
       }));
     return send(res, 200, list);
   }
@@ -406,7 +416,7 @@ async function api(req, res, p, u) {
     return send(res, 200, { ok: true });
   }
   if (r[0] === 'recurring' && r[1] === 'accept' && m === 'POST') {
-    const x = recurring.detect(V().tx, { today: auto.today() }).find(y => y.key === b.key);
+    const x = recurring.detect(userVault().tx, { today: auto.today() }).find(y => y.key === b.key);
     if (!x) {
       return send(res, 404, { error: 'That pattern is gone' });
     }
@@ -468,7 +478,7 @@ async function api(req, res, p, u) {
       months.push(`${y}-${String(mo).padStart(2, '0')}`);
     }
     const tot = {};
-    for (const x of V().tx) {
+    for (const x of userVault().tx) {
       if (x.type === 'expense' && months.includes(x.date.slice(0, 7))) {
         tot[x.category] = (tot[x.category] || 0) + x.amount;
       }
@@ -661,6 +671,7 @@ async function api(req, res, p, u) {
   return send(res, 404, { error: 'Not found' });
 }
 
+// ---- HTTP entry point: health check, auth, API, then static files with SPA fallback
 const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://x');
   const p = u.pathname.split('/').filter(Boolean);
@@ -704,6 +715,7 @@ const server = http.createServer(async (req, res) => {
     send(res, 500, { error: 'Server error' });
   }
 });
+// ---- startup
 (async () => {
   store = await require('./store/state-store')(backend);
   auth = require('./auth')({ store, ADMIN_KEY, send, body });

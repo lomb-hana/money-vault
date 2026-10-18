@@ -13,8 +13,9 @@ const rules = {
   'no-unreachable': 'error',
   'no-dupe-keys': 'error',
   'no-self-compare': 'error',
+  'no-shadow': 'error',
+  'no-unused-expressions': 'error',
   'no-unsafe-finally': 'error',
-  'require-atomic-updates': 'off',
   // == only for the deliberate `x == null` (null or undefined) check
   eqeqeq: ['error', 'always', { null: 'ignore' }],
   // Modern, explicit declarations

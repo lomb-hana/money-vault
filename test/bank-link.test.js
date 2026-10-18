@@ -73,7 +73,9 @@ test.before(async () => {
   throw new Error('server did not start');
 });
 test.after(() => {
-  app && app.kill();
+  if (app) {
+    app.kill();
+  }
   if (M) {
     M.closeAllConnections();
     M.close();
