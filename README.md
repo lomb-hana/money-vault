@@ -1,6 +1,7 @@
 # Money Vault
 
-Personal money tracker. Node 18+, zero npm deps. Every user's data is private to their account.
+Personal money tracker. Node 18+, zero runtime npm deps (Prettier and ESLint are dev-only).
+Every user's data is private to their account.
 
 ## Local
 
@@ -27,3 +28,8 @@ New > Blueprint > this repo. Fill ADMIN_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY 
 ## Automatic bank linking
 
 See bank-link/README.md. Tests (mock providers, no real data): `npm test`.
+
+## Development
+
+`npm install`, then `npm run format`, `npm run lint`, `npm test`. Changes go in through pull requests;
+see [CONTRIBUTING.md](CONTRIBUTING.md).

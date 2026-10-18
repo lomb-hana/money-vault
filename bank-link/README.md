@@ -17,11 +17,11 @@ traffic is tiny and Render free sleeps anyway). Live data from checking, savings
 
 ## Providers (providers/*.js, same interface, see providers/index.js)
 
-| Provider         | Status                                                   | Needs                                                                                                    |
-| ---------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| SimpleFIN Bridge | Live-ready, tested against a protocol mock               | Nothing on our side. Each user pays SimpleFIN $15/yr (or $1.50/mo), up to 25 institutions                |
-| Teller           | Works against Teller's public sandbox; live needs an app | `TELLER_APP_ID` (+ `TELLER_CERT`/`TELLER_KEY` for development/production mTLS). Free for 100 enrollments |
-| Plaid            | Written to the documented API, not live-tested           | `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ENV`. Free Trial = 10 Items                                    |
+| Provider         | Status                                                                                                   | Needs                                                                                                    |
+| ---------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| SimpleFIN Bridge | Live-ready, tested against a protocol mock                                                               | Nothing on our side. Each user pays SimpleFIN $15/yr (or $1.50/mo), up to 25 institutions                |
+| Teller           | Works against Teller's public sandbox; live needs an app                                                 | `TELLER_APP_ID` (+ `TELLER_CERT`/`TELLER_KEY` for development/production mTLS). Free for 100 enrollments |
+| Plaid            | Documented REST API; tested against a sandbox-shaped mock (test/plaid.test.js), not the real sandbox yet | `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ENV`. Free Trial = 10 Items                                    |
 
 SimpleFIN safety per the protocol checklist: https only, TLS verified, no redirects, claim/access hosts allowlisted
 (`SIMPLEFIN_HOSTS`, default beta-bridge.simplefin.org,bridge.simplefin.org), 403 on claim tells the user the token may be
@@ -38,3 +38,14 @@ POST /api/bank/plaid/link-token
     node test/mocks/simplefin-teller-mock.js 4555 &
     SIMPLEFIN_ALLOW_INSECURE_LOCAL=1 PORT=3050 node server.js
     # token: echo -n http://127.0.0.1:4555/simplefin/claim/demo | base64
+
+## Plaid sync details
+
+`/transactions/sync` with a cursor that is sealed together with the access token. Each sync pages
+through `has_more`, then the service applies the updates: `added` rows go through the normal
+dedupe + categorize path, `modified` rows replace our earlier copy, `removed` rows are deleted.
+If Plaid answers `TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION`, the whole loop restarts from the
+cursor it started with (Plaid's documented rule). Re-login errors (`ITEM_LOGIN_REQUIRED` and
+friends) mark the link "needs you"; rate limits come back as HTTP 429 and the link just shows an
+error until the next sync. `PLAID_API_BASE` points the adapter at a mock for tests and is ignored
+when `NODE_ENV=production`.
